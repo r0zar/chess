@@ -84,9 +84,9 @@ export default function HomePage() {
   const getStatusBadgeVariant = (status: string | null): "default" | "secondary" | "outline" | "destructive" => {
     if (!status) return "secondary"
     if (status.includes("wins")) return "default"
-    if (status === "ongoing") return "outline"
+    if (status === "ongoing") return "default"
     if (status === "pending") return "secondary"
-    if (status.includes("draw") || status === "stalemate") return "secondary"
+    if (status.includes("draw") || status === "stalemate") return "outline"
     return "destructive"
   }
 
@@ -108,7 +108,7 @@ export default function HomePage() {
         <div className="container mx-auto flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2">
             <Gamepad2 className="h-8 w-8 text-sky-400" />
-            <h1 className="text-2xl font-bold tracking-tight text-slate-100">Stacks Chess</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-100 font-crimson">Stacks Chess</h1>
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/admin/dashboard" className="text-sm text-slate-300 hover:text-sky-400 transition-colors">
@@ -123,7 +123,7 @@ export default function HomePage() {
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Hero Section */}
         <section className="text-center py-12 sm:py-16 md:py-20 rounded-xl bg-slate-800/50 shadow-xl mb-12">
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-6 tracking-tight">
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-6 tracking-tight font-playfair">
             <span className="block">Welcome to Stacks Chess</span>
             <span className="block text-sky-400">Challenge Your Mind.</span>
           </h2>
@@ -147,8 +147,8 @@ export default function HomePage() {
         {/* Games List Section */}
         <section>
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-3xl font-semibold tracking-tight">Available Games</h3>
-            <Button variant="outline" onClick={loadGames} disabled={isLoadingGames}>
+            <h3 className="text-3xl font-semibold tracking-tight font-crimson">Available Games</h3>
+            <Button variant="secondary" onClick={loadGames} disabled={isLoadingGames}>
               {isLoadingGames ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -183,7 +183,7 @@ export default function HomePage() {
             <Card className="bg-slate-800/70 border-slate-700 shadow-lg text-center py-12">
               <CardContent>
                 <Users className="mx-auto h-12 w-12 text-slate-500 mb-4" />
-                <p className="text-xl font-medium text-slate-300">No Active Games</p>
+                <p className="text-xl font-medium text-slate-300 font-crimson">No Active Games</p>
                 <p className="text-slate-400">Be the first to start a new challenge!</p>
               </CardContent>
             </Card>
@@ -197,13 +197,13 @@ export default function HomePage() {
                   className="bg-slate-800/70 border-slate-700 shadow-md hover:border-sky-500/70 transition-all duration-200 flex flex-col"
                 >
                   <CardHeader className="p-3">
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start gap-2">
                       <CardTitle className="text-base font-semibold truncate text-slate-100 leading-tight">
-                        Game <span className="font-mono text-sky-400 text-xs">{game.id.substring(0, 8)}</span>
+                        <span className="font-mono text-sky-400">{game.id.substring(0, 8)}</span>
                       </CardTitle>
                       <Badge
                         variant={getStatusBadgeVariant(game.status)}
-                        className="text-[10px] capitalize ml-2 shrink-0 px-1.5 py-0.5"
+                        className="shrink-0"
                       >
                         {game.status.replace(/_/g, " ")}
                       </Badge>
@@ -230,13 +230,13 @@ export default function HomePage() {
                     </div>
                   </CardContent>
                   <CardFooter className="p-3 pt-2 flex flex-col items-stretch space-y-1.5">
-                    <Button asChild size="sm" className="w-full bg-sky-600 hover:bg-sky-700 text-white text-xs h-8">
+                    <Button asChild size="sm" className="w-full">
                       <Link href={`/play/${game.id}`}>
                         {game.status === "pending" &&
-                        (!game.playerWhiteId ||
-                          !game.playerBlackId ||
-                          (stxAddress &&
-                            (game.playerWhiteAddress === stxAddress || game.playerBlackAddress === stxAddress)))
+                          (!game.playerWhiteId ||
+                            !game.playerBlackId ||
+                            (stxAddress &&
+                              (game.playerWhiteAddress === stxAddress || game.playerBlackAddress === stxAddress)))
                           ? "Join Game"
                           : "View Game"}
                       </Link>

@@ -10,7 +10,7 @@ import { format } from "date-fns"
 
 async function getGameDetails(gameId: string): Promise<{ game: GameData; moves: MoveData[] } | null> {
   try {
-    const gameData = await kv.hgetall<GameData>(`game:${gameId}`)
+    const gameData = await kv.hgetall(`game:${gameId}`) as any
     if (!gameData || Object.keys(gameData).length === 0) {
       return null
     }
@@ -59,7 +59,7 @@ export default async function AdminGameDetailsPage({ params }: { params: { gameI
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">
+      <h1 className="text-3xl font-bold font-crimson">
         Game Details: <span className="font-mono text-2xl">{game.id}</span>
       </h1>
 

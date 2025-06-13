@@ -102,6 +102,11 @@ interface GameSidebarProps {
   moveHistory: Move[]
   yourRole: string
   isYourTurn: boolean
+  showDebug: boolean
+  onToggleDebug: () => void
+  isRefreshing: boolean
+  onRefresh: () => void
+  connectionState: 'disconnected' | 'connecting' | 'connected'
 }
 
 export default function GameSidebar({
@@ -114,6 +119,11 @@ export default function GameSidebar({
   moveHistory,
   yourRole,
   isYourTurn,
+  showDebug,
+  onToggleDebug,
+  isRefreshing,
+  onRefresh,
+  connectionState,
 }: GameSidebarProps) {
   console.log(
     `[GameSidebar ${gameId}] RENDER. Received moveHistory length: ${moveHistory?.length || 0}. First move SAN: ${moveHistory?.[0]?.san}`,
@@ -122,9 +132,9 @@ export default function GameSidebar({
   const getStatusBadgeVariant = (status: string | null): "default" | "secondary" | "outline" | "destructive" => {
     if (!status) return "secondary"
     if (status.toLowerCase().includes("wins")) return "default"
-    if (status === "ongoing") return "outline"
+    if (status === "ongoing") return "default"
     if (status === "pending") return "secondary"
-    if (status.toLowerCase().includes("draw") || status === "stalemate") return "secondary"
+    if (status.toLowerCase().includes("draw") || status === "stalemate") return "outline"
     return "destructive"
   }
 
@@ -175,8 +185,34 @@ export default function GameSidebar({
 
   return (
     <aside className="w-[300px] bg-slate-800/50 border-l border-slate-700 flex flex-col h-full">
-      <div className="p-4 border-b border-slate-700">
-        <h2 className="text-lg font-semibold tracking-tight text-slate-100">Game Info</h2>
+      <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold tracking-tight text-slate-100">Game Info</h2>
+          <button
+            onClick={onToggleDebug}
+            className="w-5 h-5 rounded-full bg-slate-600/50 hover:bg-slate-600 transition-colors flex items-center justify-center"
+            title="Toggle Debug View"
+          >
+            <Info className="h-3 w-3 text-slate-400" />
+          </button>
+        </div>
+        <button
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-slate-700/50 hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Click to refresh game state"
+        >
+          <div className={`w-2 h-2 rounded-full ${connectionState === 'connected' ? 'bg-green-400' :
+            connectionState === 'connecting' ? 'bg-yellow-400' :
+              'bg-red-400'
+            }`} />
+          <span className="text-slate-300">
+            {isRefreshing ? 'Syncing...' :
+              connectionState === 'connected' ? 'Live' :
+                connectionState === 'connecting' ? 'Connecting' :
+                  'Offline'}
+          </span>
+        </button>
       </div>
 
       <div className="p-4 space-y-3">
@@ -189,13 +225,13 @@ export default function GameSidebar({
           </h3>
           <div className="space-y-1">
             <InfoRow label="Status">
-              <Badge variant={getStatusBadgeVariant(gameStatus)} className="capitalize text-xs">
+              <Badge variant={getStatusBadgeVariant(gameStatus)}>
                 {gameStatus.replace(/_/g, " ")}
               </Badge>
             </InfoRow>
             {currentTurn && gameStatus === "ongoing" && (
               <InfoRow label="Turn">
-                <Badge variant={isYourTurn ? "default" : "secondary"} className="text-xs">
+                <Badge variant={isYourTurn ? "default" : "secondary"}>
                   {currentTurn === "w" ? "White" : "Black"}
                   {isYourTurn && " (You)"}
                 </Badge>
@@ -203,7 +239,7 @@ export default function GameSidebar({
             )}
             {winner && (
               <InfoRow label="Winner">
-                <Badge variant="default" className="text-xs">
+                <Badge variant="default">
                   <Trophy className="inline h-3 w-3 mr-1" />
                   {winner === "w" ? "White" : "Black"}
                 </Badge>
@@ -230,6 +266,7 @@ export default function GameSidebar({
             </InfoRow>
           </div>
         </div>
+
       </div>
 
       <div className="flex flex-col flex-grow min-h-0">

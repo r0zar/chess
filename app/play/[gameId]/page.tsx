@@ -15,7 +15,7 @@ async function getPublicInitialGameState(gameId: string): Promise<{
   playerBlackAddress?: string | null
 } | null> {
   try {
-    const gameData = await kv.hgetall<GameData>(`game:${gameId}`)
+    const gameData = await kv.hgetall(`game:${gameId}`) as GameData | null
 
     if (!gameData || Object.keys(gameData).length === 0 || !gameData.currentFen) {
       return null
@@ -43,7 +43,7 @@ interface GamePageParams {
 }
 
 export default async function GamePage({ params }: GamePageParams) {
-  const { gameId } = params
+  const { gameId } = await params
   const publicInitialGameState = await getPublicInitialGameState(gameId)
 
   if (!publicInitialGameState) {

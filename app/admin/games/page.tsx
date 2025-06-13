@@ -7,6 +7,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Eye } from "lucide-react"
 import RelativeTimeDisplay from "@/components/relative-time-display"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 
 async function getGames(page = 1, limit = 10): Promise<{ games: GameData[]; totalCount: number }> {
   const offset = (page - 1) * limit
@@ -23,7 +24,7 @@ async function getGames(page = 1, limit = 10): Promise<{ games: GameData[]; tota
     const multi = kv.multi()
     gameIds.forEach((id) => {
       if (typeof id === "string") {
-        multi.hgetall<GameData>(`game:${id}`)
+        multi.hgetall(`game:${id}`)
       }
     })
     const results = (await multi.exec()) as (GameData | null)[]
@@ -52,7 +53,7 @@ export default async function AdminGamesPage({ searchParams }: { searchParams?: 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Games Management</h1>
+        <h1 className="text-3xl font-bold font-crimson">Games Management</h1>
       </div>
 
       <Card>
@@ -122,22 +123,4 @@ export default async function AdminGamesPage({ searchParams }: { searchParams?: 
   )
 }
 
-// Dummy Card components if not available from shadcn/ui
-const Card = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`rounded-lg border bg-card text-card-foreground shadow-sm ${className}`} {...props} />
-)
-const CardHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`flex flex-col space-y-1.5 p-6 ${className}`} {...props} />
-)
-const CardTitle = ({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-  <h3 className={`text-2xl font-semibold leading-none tracking-tight ${className}`} {...props} />
-)
-const CardDescription = ({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (
-  <p className={`text-sm text-muted-foreground ${className}`} {...props} />
-)
-const CardContent = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`p-6 pt-0 ${className}`} {...props} />
-)
-const CardFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={`flex items-center p-6 pt-0 ${className}`} {...props} />
-)
+

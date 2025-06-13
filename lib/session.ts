@@ -9,8 +9,8 @@ const SESSION_COOKIE_NAME = "player-session-id"
  * This function is for use in API Routes and Server Components where `next/headers` is available.
  * @returns The session ID string.
  */
-export function getOrCreateSessionId(): string {
-  const cookieStore = cookies()
+export async function getOrCreateSessionId(): Promise<string> {
+  const cookieStore = await cookies()
   let sessionId = cookieStore.get(SESSION_COOKIE_NAME)?.value
 
   if (!sessionId) {

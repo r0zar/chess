@@ -35,7 +35,7 @@ export default function CreateGameButton() {
       onClick={handleCreateGame}
       size="lg"
       disabled={isLoading}
-      className="bg-sky-500 hover:bg-sky-600 text-white text-base px-8 py-3"
+      className="text-base px-8 py-3"
     >
       {isLoading ? (
         <>

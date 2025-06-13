@@ -6,6 +6,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { cleanKVData, mapIdentityToColor, identityToPieceSymbol } from "@/lib/chess-logic/mappers"
 import { getOrCreateSessionId } from "@/lib/session"
 import { getOrCreateUser } from "@/lib/user"
+import { GameEventBroadcaster } from "@/lib/game-events"
 
 export async function POST(request: NextRequest, { params }: { params: { gameId: string } }) {
   const { gameId } = params
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest, { params }: { params: { gameId:
   const userStxAddress = user.stxAddress
 
   try {
-    const gameData = await kv.hgetall<GameData>(`game:${gameId}`)
+    const gameData = await kv.hgetall(`game:${gameId}`) as GameData | null
     if (!gameData || !gameData.currentFen) {
       console.error(`[Identify Route Game: ${gameId}] Game not found or FEN missing.`)
       return NextResponse.json({ message: "Game not found or data incomplete." }, { status: 404 })
@@ -54,10 +55,12 @@ export async function POST(request: NextRequest, { params }: { params: { gameId:
         updatePayload.playerWhiteId = userId
         updatePayload.playerWhiteAddress = userStxAddress
         clientPlayerColorIdentity = "white"
+        console.log(`[Identify Route Game: ${gameId}] Assigning new white player: ${userId}`)
       } else if (!gameData.playerBlackId) {
         updatePayload.playerBlackId = userId
         updatePayload.playerBlackAddress = userStxAddress
         clientPlayerColorIdentity = "black"
+        console.log(`[Identify Route Game: ${gameId}] Assigning new black player: ${userId}`)
       }
     }
 
@@ -81,6 +84,27 @@ export async function POST(request: NextRequest, { params }: { params: { gameId:
       // IMPORTANT: Manually merge the updates into the local gameData object.
       // This ensures the rest of the function uses the absolute latest data without another DB read.
       Object.assign(gameData, updatePayload)
+
+      // Broadcast player join events if a new player was assigned
+      if (updatePayload.playerWhiteId && updatePayload.playerWhiteId === userId) {
+        GameEventBroadcaster.broadcast(gameId, {
+          type: 'player_joined',
+          data: {
+            playerColor: 'w',
+            playerId: userId,
+            playerAddress: userStxAddress || undefined
+          }
+        })
+      } else if (updatePayload.playerBlackId && updatePayload.playerBlackId === userId) {
+        GameEventBroadcaster.broadcast(gameId, {
+          type: 'player_joined',
+          data: {
+            playerColor: 'b',
+            playerId: userId,
+            playerAddress: userStxAddress || undefined
+          }
+        })
+      }
     }
 
     const gameLogic = new ChessJsAdapter(gameData.currentFen)

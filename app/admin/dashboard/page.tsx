@@ -53,7 +53,7 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+      <h1 className="text-3xl font-bold font-crimson">Admin Dashboard</h1>
       <Card>
         <CardHeader>
           <CardTitle>Data Source Notice</CardTitle>

@@ -90,9 +90,8 @@ export default function Auth({ onConnect, onDisconnect }: AuthProps) {
     return (
       <Button
         onClick={handleDisconnectWallet}
-        variant="outline"
+        variant="secondary"
         size="sm"
-        className="border-slate-600 hover:bg-slate-700 hover:text-slate-100"
       >
         <LogOut className="mr-2 h-4 w-4" />
         <span className="font-mono text-xs">
@@ -105,8 +104,7 @@ export default function Auth({ onConnect, onDisconnect }: AuthProps) {
   return (
     <Button
       onClick={handleConnectWallet}
-      variant="ghost"
-      className="text-slate-300 hover:bg-slate-700 hover:text-sky-400"
+      variant="secondary"
     >
       <LogIn className="mr-2 h-4 w-4" />
       Connect Wallet

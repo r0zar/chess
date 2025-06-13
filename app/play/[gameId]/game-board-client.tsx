@@ -7,6 +7,8 @@ import { ChessJsAdapter } from "@/lib/chess-logic/game"
 import type { FenString, PlayerColor, Square, PieceSymbol as LocalPieceSymbol, Move } from "@/lib/chess-logic/types"
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useToast } from "@/components/ui/use-toast"
+import { useGameEvents } from "@/hooks/useGameEvents"
+import type { GameEvent } from "@/lib/game-events"
 import Auth from "@/components/auth"
 import Link from "next/link"
 import { ArrowLeft, Bug } from "lucide-react"
@@ -120,10 +122,13 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
   const [boardWidth, setBoardWidth] = useState(500)
   const mainContentRef = useRef<HTMLDivElement>(null)
   const [showDebug, setShowDebug] = useState(false)
+  const [sseConnected, setSseConnected] = useState(false)
 
   console.log(
     `[GameBoardClient ${gameId}] Component RENDER. moveHistory length: ${moveHistory.length}. Fen: ${currentFen}`,
   )
+
+
 
   const updateBoardWidth = useCallback(() => {
     if (mainContentRef.current) {
@@ -188,6 +193,95 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
     },
     [gameId, toast, isRefreshing], // Added isRefreshing to prevent concurrent calls
   )
+
+  // Handle real-time game events
+  const handleGameEvent = useCallback((event: GameEvent) => {
+    console.log(`[GameBoardClient ${gameId}] Received SSE event:`, event.type, event.data)
+
+    switch (event.type) {
+      case 'move':
+        // Only update if this move came from another player
+        if (event.data.playerId !== stxAddress) {
+          const { move, gameState } = event.data
+
+          console.log(`[GameBoardClient ${gameId}] Processing opponent move:`, move.san)
+
+          // Update game state
+          const updatedGame = new ChessJsAdapter(gameState.fen)
+          setChessGame(updatedGame)
+          setCurrentFen(gameState.fen)
+          setCurrentTurn(gameState.turn)
+          setGameStatus(gameState.status)
+          setWinner(gameState.winner)
+
+          // Add move to history
+          setMoveHistory(prev => [...prev, move])
+
+          // Clear any selection
+          setPossibleMoves({})
+          setSelectedSquare(null)
+
+          // Show notification
+          toast({
+            title: "Opponent Moved",
+            description: `${move.san}`,
+            duration: 3000,
+          })
+        }
+        break
+
+      case 'player_joined':
+        console.log(`[GameBoardClient ${gameId}] Player joined:`, event.data)
+        // Sync game state to get updated player info
+        syncGameState(stxAddress, false)
+        toast({
+          title: "Player Joined",
+          description: `${event.data.playerColor === 'w' ? 'White' : 'Black'} player joined the game`,
+          duration: 3000,
+        })
+        break
+
+      case 'player_disconnected':
+        console.log(`[GameBoardClient ${gameId}] Player disconnected:`, event.data)
+        toast({
+          title: "Player Disconnected",
+          description: `${event.data.playerColor === 'w' ? 'White' : 'Black'} player disconnected`,
+          duration: 3000,
+        })
+        break
+
+      case 'game_ended':
+        console.log(`[GameBoardClient ${gameId}] Game ended:`, event.data)
+        setGameStatus(event.data.status)
+        setWinner(event.data.winner)
+        toast({
+          title: "Game Ended",
+          description: event.data.reason,
+          duration: 5000,
+        })
+        break
+
+      case 'sync_required':
+        console.log(`[GameBoardClient ${gameId}] Sync required:`, event.data.reason)
+        syncGameState(stxAddress, false)
+        break
+
+      default:
+        console.log(`[GameBoardClient ${gameId}] Unhandled event type:`, event.type)
+    }
+  }, [gameId, stxAddress, toast, syncGameState])
+
+  // Set up SSE connection
+  const { isConnected, reconnect, connectionState } = useGameEvents(gameId, handleGameEvent, {
+    enabled: true,
+    reconnectDelay: 3000,
+    maxReconnectAttempts: 5
+  })
+
+  // Update connection status - now reactive to connectionState changes
+  useEffect(() => {
+    setSseConnected(isConnected())
+  }, [isConnected, connectionState])
 
   // Initial game state sync
   useEffect(() => {
@@ -425,27 +519,6 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
               Back to Lobby
             </Link>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setShowDebug((prev) => !prev)}
-                className="h-7 w-7"
-                title="Toggle Debug View"
-              >
-                <Bug className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  console.log(`[GameBoardClient ${gameId}] Manual refresh clicked. Calling syncGameState.`)
-                  syncGameState(stxAddress, true)
-                }}
-                disabled={isRefreshing}
-                className="text-xs text-slate-300 hover:text-sky-400"
-              >
-                {isRefreshing ? "Syncing..." : "Refresh State"}
-              </Button>
               <Auth onConnect={handleConnect} onDisconnect={handleDisconnect} />
             </div>
           </div>
@@ -511,6 +584,14 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
         moveHistory={moveHistory}
         yourRole={playerRole}
         isYourTurn={isMyTurn}
+        showDebug={showDebug}
+        onToggleDebug={() => setShowDebug((prev) => !prev)}
+        isRefreshing={isRefreshing}
+        onRefresh={() => {
+          console.log(`[GameBoardClient ${gameId}] Manual refresh clicked. Calling syncGameState.`)
+          syncGameState(stxAddress, true)
+        }}
+        connectionState={connectionState}
       />
     </div>
   )

@@ -9,6 +9,7 @@ import type { GameData, MoveData, GameStatus } from "@/lib/chess-data.types"
 import { type NextRequest, NextResponse } from "next/server"
 import { cleanKVData, mapColorToIdentity, pieceSymbolToIdentity } from "@/lib/chess-logic/mappers"
 import { getOrCreateSessionId } from "@/lib/session"
+import { GameEventBroadcaster } from "@/lib/game-events"
 
 export async function POST(request: NextRequest, { params }: { params: { gameId: string } }) {
   const { gameId } = params
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest, { params }: { params: { gameId:
   }
 
   try {
-    const gameRecord = await kv.hgetall<GameData>(`game:${gameId}`)
+    const gameRecord = await kv.hgetall(`game:${gameId}`) as GameData | null
     if (!gameRecord || !gameRecord.currentFen) {
       return NextResponse.json({ success: false, message: "Game not found or data incomplete." }, { status: 404 })
     }
@@ -149,6 +150,42 @@ export async function POST(request: NextRequest, { params }: { params: { gameId:
     }
 
     await kv.rpush(movesListKey, moveDataString)
+
+    // Broadcast move event to all connected clients (except the player who made the move)
+    GameEventBroadcaster.broadcast(gameId, {
+      type: 'move',
+      data: {
+        move: moveResult,
+        gameState: {
+          fen: fenAfterMove,
+          status: newGameStatus,
+          winner: gameWinnerFromEngine,
+          turn: game.getTurn()
+        },
+        playerId: userId
+      }
+    }, userId) // Exclude the player who made the move
+
+    // Broadcast game end event if the game is over
+    if (newGameStatus !== "ongoing" && newGameStatus !== "pending") {
+      let endReason = "Game ended"
+      if (newGameStatus.includes("checkmate")) {
+        endReason = `Checkmate! ${gameWinnerFromEngine === "w" ? "White" : "Black"} wins`
+      } else if (newGameStatus === "stalemate") {
+        endReason = "Stalemate - Draw"
+      } else if (newGameStatus.startsWith("draw_")) {
+        endReason = "Draw"
+      }
+
+      GameEventBroadcaster.broadcast(gameId, {
+        type: 'game_ended',
+        data: {
+          winner: gameWinnerFromEngine,
+          reason: endReason,
+          status: newGameStatus
+        }
+      })
+    }
 
     return NextResponse.json({
       success: true,

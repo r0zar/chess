@@ -19,6 +19,10 @@ const config = {
       },
     },
     extend: {
+      fontFamily: {
+        'playfair': ['var(--font-playfair)', 'serif'],
+        'crimson': ['var(--font-crimson)', 'serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
