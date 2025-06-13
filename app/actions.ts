@@ -6,12 +6,15 @@ import type { GameData } from "@/lib/chess-data.types"
 import { ChessJsAdapter } from "@/lib/chess-logic/game"
 import { v4 as uuidv4 } from "uuid"
 import { cleanKVData } from "@/lib/chess-logic/mappers"
+import { GlobalEventBroadcaster } from "@/lib/global-events"
+import { getOrCreateSessionId } from "@/lib/session"
 
 const INITIAL_FEN = new ChessJsAdapter().getFen()
 
 export async function createAndNavigateToGame() {
   const gameId = uuidv4()
   const now = Date.now()
+  const userId = await getOrCreateSessionId()
 
   const newGameData: GameData = {
     id: gameId,
@@ -26,11 +29,18 @@ export async function createAndNavigateToGame() {
   }
 
   try {
-    const cleanedGameData = cleanKVData(newGameData)
+    const cleanedGameData = cleanKVData(newGameData as any)
 
     // Perform KV operations
     await kv.hset(`game:${gameId}`, cleanedGameData)
     await kv.zadd("games_by_update_time", { score: now, member: gameId })
+
+    // Broadcast game creation to global events
+    GlobalEventBroadcaster.getInstance().broadcastGameActivity(
+      gameId,
+      'created',
+      userId
+    )
   } catch (kvError) {
     // This catch block is specifically for errors during KV operations
     console.error("Vercel KV Action: Error during KV operations in createAndNavigateToGame:", kvError)

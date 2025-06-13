@@ -10,10 +10,11 @@ import { type NextRequest, NextResponse } from "next/server"
 import { cleanKVData, mapColorToIdentity, pieceSymbolToIdentity } from "@/lib/chess-logic/mappers"
 import { getOrCreateSessionId } from "@/lib/session"
 import { GameEventBroadcaster } from "@/lib/game-events"
+import { GlobalEventBroadcaster } from "@/lib/global-events"
 
 export async function POST(request: NextRequest, { params }: { params: { gameId: string } }) {
   const { gameId } = params
-  const userId = getOrCreateSessionId() // This is the persistent User ID
+  const userId = await getOrCreateSessionId() // This is the persistent User ID
 
   let moveInput: { from: Square; to: Square; promotion?: ChessPieceSymbol }
   try {
@@ -166,6 +167,16 @@ export async function POST(request: NextRequest, { params }: { params: { gameId:
       }
     }, userId) // Exclude the player who made the move
 
+    // Broadcast move to global events for all users in the app
+    const playerAddress = currentTurnColor === "w" ? gameRecord.playerWhiteAddress : gameRecord.playerBlackAddress
+    GlobalEventBroadcaster.getInstance().broadcastMoveActivity(
+      gameId,
+      userId,
+      playerAddress || undefined,
+      currentTurnColor,
+      moveResult.san
+    )
+
     // Broadcast game end event if the game is over
     if (newGameStatus !== "ongoing" && newGameStatus !== "pending") {
       let endReason = "Game ended"
@@ -185,6 +196,17 @@ export async function POST(request: NextRequest, { params }: { params: { gameId:
           status: newGameStatus
         }
       })
+
+      // Broadcast game end to global events
+      GlobalEventBroadcaster.getInstance().broadcastGameActivity(
+        gameId,
+        'ended',
+        userId,
+        playerAddress || undefined,
+        undefined, // No specific player color for game end
+        newGameStatus,
+        gameWinnerFromEngine
+      )
     }
 
     return NextResponse.json({

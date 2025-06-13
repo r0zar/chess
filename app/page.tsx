@@ -11,7 +11,7 @@ import Auth from "@/components/auth"
 import { useState, useEffect, useCallback } from "react"
 import { useToast } from "@/components/ui/use-toast"
 import { isConnected, getLocalStorage } from "@stacks/connect"
-import { ListChecks, Loader2, Users, Gamepad2, CircleUser } from "lucide-react" // Added CircleUser
+import { ListChecks, Loader2, Users, Crown, CircleUser } from "lucide-react" // Added CircleUser
 
 // The GameData type should already include playerWhiteId and playerBlackId from lib/chess-data.types.ts
 
@@ -107,8 +107,8 @@ export default function HomePage() {
       <header className="py-4 px-4 sm:px-6 lg:px-8 sticky top-0 z-50 bg-slate-900/80 backdrop-blur-md">
         <div className="container mx-auto flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2">
-            <Gamepad2 className="h-8 w-8 text-sky-400" />
-            <h1 className="text-2xl font-bold tracking-tight text-slate-100 font-crimson">Stacks Chess</h1>
+            <Crown className="h-6 w-6 text-sky-400 mt-0.5 mb-1.5" />
+            <h1 className="text-2xl font-bold tracking-tight text-slate-100 font-crimson">Chess</h1>
           </Link>
           <div className="flex items-center gap-4">
             <Link href="/admin/dashboard" className="text-sm text-slate-300 hover:text-sky-400 transition-colors">
@@ -198,8 +198,8 @@ export default function HomePage() {
                 >
                   <CardHeader className="p-3">
                     <div className="flex justify-between items-start gap-2">
-                      <CardTitle className="text-base font-semibold truncate text-slate-100 leading-tight">
-                        <span className="font-mono text-sky-400">{game.id.substring(0, 8)}</span>
+                      <CardTitle className="text-xs font-mono text-sky-400 leading-tight">
+                        {game.id.substring(0, 8)}
                       </CardTitle>
                       <Badge
                         variant={getStatusBadgeVariant(game.status)}
@@ -212,7 +212,7 @@ export default function HomePage() {
                   <CardContent className="p-3 pt-0 space-y-1.5 text-xs flex-grow">
                     <div className="flex items-center justify-between">
                       <span className="flex items-center text-slate-400">
-                        <CircleUser className="w-3 h-3 mr-1 text-slate-100 opacity-70" />
+                        <CircleUser className="w-3 h-3 mr-1 text-slate-900 bg-white rounded-full p-0.5" />
                         White:
                       </span>
                       <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
@@ -221,7 +221,7 @@ export default function HomePage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="flex items-center text-slate-400">
-                        <CircleUser className="w-3 h-3 mr-1 text-slate-500 opacity-70" />
+                        <CircleUser className="w-3 h-3 mr-1 text-white bg-slate-900 rounded-full p-0.5" />
                         Black:
                       </span>
                       <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">

@@ -3,7 +3,8 @@ import type { Metadata } from "next"
 import { Inter, Playfair_Display, Crimson_Text } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster" // Assuming you have a Toaster component
+import { Toaster } from "@/components/ui/toaster"
+import GlobalEventsProvider from "@/components/global-events-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -35,8 +36,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} ${playfairDisplay.variable} ${crimsonText.variable}`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
-          <Toaster />
+          <GlobalEventsProvider>
+            {children}
+            <Toaster />
+          </GlobalEventsProvider>
         </ThemeProvider>
       </body>
     </html>

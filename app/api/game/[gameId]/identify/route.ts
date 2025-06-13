@@ -7,11 +7,12 @@ import { cleanKVData, mapIdentityToColor, identityToPieceSymbol } from "@/lib/ch
 import { getOrCreateSessionId } from "@/lib/session"
 import { getOrCreateUser } from "@/lib/user"
 import { GameEventBroadcaster } from "@/lib/game-events"
+import { GlobalEventBroadcaster } from "@/lib/global-events"
 
 export async function POST(request: NextRequest, { params }: { params: { gameId: string } }) {
   const { gameId } = params
   console.log(`[Identify Route Game: ${gameId}] Received request.`)
-  const sessionId = getOrCreateSessionId()
+  const sessionId = await getOrCreateSessionId()
 
   let payload: { stxAddress?: string } = {}
   try {
@@ -95,6 +96,15 @@ export async function POST(request: NextRequest, { params }: { params: { gameId:
             playerAddress: userStxAddress || undefined
           }
         })
+
+        // Broadcast to global events
+        GlobalEventBroadcaster.getInstance().broadcastGameActivity(
+          gameId,
+          'joined',
+          userId,
+          userStxAddress || undefined,
+          'w'
+        )
       } else if (updatePayload.playerBlackId && updatePayload.playerBlackId === userId) {
         GameEventBroadcaster.broadcast(gameId, {
           type: 'player_joined',
@@ -104,6 +114,15 @@ export async function POST(request: NextRequest, { params }: { params: { gameId:
             playerAddress: userStxAddress || undefined
           }
         })
+
+        // Broadcast to global events
+        GlobalEventBroadcaster.getInstance().broadcastGameActivity(
+          gameId,
+          'joined',
+          userId,
+          userStxAddress || undefined,
+          'b'
+        )
       }
     }
 
