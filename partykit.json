@@ -1,0 +1,6 @@
+{
+    "name": "chess-game",
+    "main": "party/chess-game.ts",
+    "serve": "public",
+    "compatibilityDate": "2025-06-14"
+}

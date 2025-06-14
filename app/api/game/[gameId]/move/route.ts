@@ -9,7 +9,37 @@ import type { GameData, MoveData, GameStatus } from "@/lib/chess-data.types"
 import { type NextRequest, NextResponse } from "next/server"
 import { cleanKVData, mapColorToIdentity, pieceSymbolToIdentity } from "@/lib/chess-logic/mappers"
 import { getOrCreateSessionId } from "@/lib/session"
-import { UnifiedConnectionManager } from "@/lib/unified-connection-manager"
+
+// PartyKit broadcast helper
+async function broadcastToPartyKit(gameId: string, event: any) {
+  try {
+    // Automatically determine PartyKit host
+    const isProduction = process.env.NODE_ENV === 'production'
+    const partyKitHost = isProduction
+      ? process.env.PARTYKIT_HOST || 'chess-game.r0zar.partykit.dev'
+      : 'localhost:1999'
+
+    const protocol = isProduction ? 'https' : 'http'
+    const url = `${protocol}://${partyKitHost}/party/${gameId}`
+
+    console.log(`[Move API] Broadcasting to PartyKit: ${url}`)
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(event)
+    })
+
+    if (!response.ok) {
+      console.error(`[Move API] PartyKit broadcast failed:`, response.status, response.statusText)
+    } else {
+      console.log(`[Move API] Successfully broadcasted ${event.type} to PartyKit`)
+    }
+  } catch (error) {
+    console.error(`[Move API] PartyKit broadcast error:`, error)
+    // Don't fail the move if PartyKit is down - the move is still valid
+  }
+}
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ gameId: string }> }) {
   const { gameId } = await params
@@ -151,14 +181,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     await kv.rpush(movesListKey, moveDataString)
 
-    // *** UNIFIED EVENT BROADCASTING ***
-    console.log(`[Move Route Game: ${gameId}] *** BROADCASTING MOVE VIA UNIFIED SYSTEM ***`)
+    // *** PARTYKIT REAL-TIME BROADCASTING ***
+    console.log(`[Move Route Game: ${gameId}] *** BROADCASTING MOVE VIA PARTYKIT ***`)
     console.log(`[Move Route Game: ${gameId}] Player who made move: ${userId}`)
 
-    // Broadcast move event to game subscribers (exclude the player who made the move)
-    await UnifiedConnectionManager.broadcast({
+    // Broadcast move event to all connected players
+    await broadcastToPartyKit(gameId, {
       type: 'move',
-      gameId,
       data: {
         move: moveResult,
         gameState: {
@@ -169,23 +198,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         },
         playerId: userId
       }
-    }, gameId, userId) // Target game, exclude moving player
+    })
 
     console.log(`[Move Route Game: ${gameId}] Move event broadcast completed`)
-
-    // Broadcast move activity globally
-    const playerAddress = currentTurnColor === "w" ? gameRecord.playerWhiteAddress : gameRecord.playerBlackAddress
-    await UnifiedConnectionManager.broadcast({
-      type: 'move_activity',
-      data: {
-        gameId,
-        userId,
-        userAddress: playerAddress || undefined,
-        playerColor: currentTurnColor,
-        move: moveResult.san,
-        timestamp: new Date().toISOString()
-      }
-    }) // Global broadcast (no gameId filter)
 
     // Broadcast game end event if the game is over
     if (newGameStatus !== "ongoing" && newGameStatus !== "pending") {
@@ -198,30 +213,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         endReason = "Draw"
       }
 
-      // Broadcast to game subscribers
-      await UnifiedConnectionManager.broadcast({
+      await broadcastToPartyKit(gameId, {
         type: 'game_ended',
-        gameId,
         data: {
           winner: gameWinnerFromEngine,
           reason: endReason,
           status: newGameStatus
         }
-      }, gameId) // Target game only
-
-      // Broadcast globally
-      await UnifiedConnectionManager.broadcast({
-        type: 'game_activity',
-        data: {
-          gameId,
-          action: 'ended',
-          userId,
-          userAddress: playerAddress || undefined,
-          gameStatus: newGameStatus,
-          winner: gameWinnerFromEngine,
-          timestamp: new Date().toISOString()
-        }
-      }) // Global broadcast
+      })
     }
 
     return NextResponse.json({

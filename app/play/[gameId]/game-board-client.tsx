@@ -9,8 +9,7 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { getOrCreateSessionId } from "@/lib/session"
-import { useUnifiedEvents } from "@/hooks/useUnifiedEvents"
-import type { UnifiedEvent } from "@/lib/unified-connection-manager"
+import { usePartyKit } from "@/hooks/usePartyKit"
 import Auth from "@/components/auth"
 import Link from "next/link"
 import { ArrowLeft, Bug } from "lucide-react"
@@ -203,8 +202,8 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
   )
 
   // Handle real-time game events
-  const handleGameEvent = useCallback((event: UnifiedEvent) => {
-    console.log(`[GameBoardClient ${gameId}] *** HANDLING GAME EVENT ***`)
+  const handleGameEvent = useCallback((event: any) => {
+    console.log(`[GameBoardClient ${gameId}] *** HANDLING PARTYKIT EVENT ***`)
     console.log(`[GameBoardClient ${gameId}] Event type: ${event.type}`)
     console.log(`[GameBoardClient ${gameId}] Event data:`, event.data)
     console.log(`[GameBoardClient ${gameId}] Current clientUserId: ${clientUserId}`)
@@ -301,12 +300,9 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
     }
   }, [gameId, clientUserId, toast, syncGameState])
 
-  // Set up SSE connection
-  const { isConnected, reconnect, connectionState } = useUnifiedEvents(handleGameEvent, {
-    gameId,
-    enabled: true,
-    reconnectDelay: 3000,
-    maxReconnectAttempts: 5
+  // Set up PartyKit connection
+  const { isConnected, connectionState } = usePartyKit(gameId, handleGameEvent, {
+    enabled: true
   })
 
   // Update connection status - now reactive to connectionState changes
