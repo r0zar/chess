@@ -283,7 +283,7 @@ export default function GameSidebar({
           <div className="flex-1 relative">
             <div className="absolute inset-0">
               <ScrollArea className="h-full w-full">
-                <div className="p-4 text-sm">
+                <div className="p-4 text-sm mb-24">
                   {groupedMoves.length === 0 ? (
                     <p className="text-slate-500 text-center text-xs py-4">No moves yet.</p>
                   ) : (
