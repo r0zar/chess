@@ -184,113 +184,122 @@ export default function GameSidebar({
   }
 
   return (
-    <aside className="w-[300px] bg-slate-800/50 border-l border-slate-700 flex flex-col h-full">
-      <div className="p-4 border-b border-slate-700 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold tracking-tight text-slate-100">Game Info</h2>
-          <button
-            onClick={onToggleDebug}
-            className="w-5 h-5 rounded-full bg-slate-600/50 hover:bg-slate-600 transition-colors flex items-center justify-center"
-            title="Toggle Debug View"
-          >
-            <Info className="h-3 w-3 text-slate-400" />
-          </button>
-        </div>
-        <button
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-slate-700/50 hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Click to refresh game state"
-        >
-          <div className={`w-2 h-2 rounded-full ${connectionState === 'connected' ? 'bg-green-400' :
-            connectionState === 'connecting' ? 'bg-yellow-400' :
-              'bg-red-400'
-            }`} />
-          <span className="text-slate-300">
-            {isRefreshing ? 'Syncing...' :
-              connectionState === 'connected' ? 'Live' :
-                connectionState === 'connecting' ? 'Connecting' :
-                  'Offline'}
-          </span>
-        </button>
-      </div>
+    <aside className="w-[300px] bg-slate-800/50 border-l border-slate-700 h-full">
+      <div className="h-full flex flex-col">
+        {/* Fixed Header Section */}
+        <div className="flex-shrink-0">
+          <div className="p-4 border-b border-slate-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold tracking-tight text-slate-100">Game Info</h2>
+              <button
+                onClick={onToggleDebug}
+                className="w-5 h-5 rounded-full bg-slate-600/50 hover:bg-slate-600 transition-colors flex items-center justify-center"
+                title="Toggle Debug View"
+              >
+                <Info className="h-3 w-3 text-slate-400" />
+              </button>
+            </div>
+            <button
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-slate-700/50 hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Click to refresh game state"
+            >
+              <div className={`w-2 h-2 rounded-full ${connectionState === 'connected' ? 'bg-green-400' :
+                connectionState === 'connecting' ? 'bg-yellow-400' :
+                  'bg-red-400'
+                }`} />
+              <span className="text-slate-300">
+                {isRefreshing ? 'Syncing...' :
+                  connectionState === 'connected' ? 'Live' :
+                    connectionState === 'connecting' ? 'Connecting' :
+                      'Offline'}
+              </span>
+            </button>
+          </div>
 
-      <div className="p-4 space-y-3">
-        {" "}
-        {/* Reduced space-y slightly */}
-        <div>
-          <h3 className="text-xs uppercase text-slate-500 font-semibold mb-1.5 flex items-center">
-            <Info className="h-3 w-3 mr-1.5" />
-            Details
-          </h3>
-          <div className="space-y-1">
-            <InfoRow label="Status">
-              <Badge variant={getStatusBadgeVariant(gameStatus)}>
-                {gameStatus.replace(/_/g, " ")}
-              </Badge>
-            </InfoRow>
-            {currentTurn && gameStatus === "ongoing" && (
-              <InfoRow label="Turn">
-                <Badge variant={isYourTurn ? "default" : "secondary"}>
-                  {currentTurn === "w" ? "White" : "Black"}
-                  {isYourTurn && " (You)"}
-                </Badge>
-              </InfoRow>
-            )}
-            {winner && (
-              <InfoRow label="Winner">
-                <Badge variant="default">
-                  <Trophy className="inline h-3 w-3 mr-1" />
-                  {winner === "w" ? "White" : "Black"}
-                </Badge>
-              </InfoRow>
-            )}
-            <InfoRow label="Your Role">{yourRole}</InfoRow>
+          <div className="p-4 space-y-3">
+            <div>
+              <h3 className="text-xs uppercase text-slate-500 font-semibold mb-1.5 flex items-center">
+                <Info className="h-3 w-3 mr-1.5" />
+                Details
+              </h3>
+              <div className="space-y-1">
+                <InfoRow label="Status">
+                  <Badge variant={getStatusBadgeVariant(gameStatus)}>
+                    {gameStatus.replace(/_/g, " ")}
+                  </Badge>
+                </InfoRow>
+                {currentTurn && gameStatus === "ongoing" && (
+                  <InfoRow label="Turn">
+                    <Badge variant={isYourTurn ? "default" : "secondary"}>
+                      {currentTurn === "w" ? "White" : "Black"}
+                      {isYourTurn && " (You)"}
+                    </Badge>
+                  </InfoRow>
+                )}
+                {winner && (
+                  <InfoRow label="Winner">
+                    <Badge variant="default">
+                      <Trophy className="inline h-3 w-3 mr-1" />
+                      {winner === "w" ? "White" : "Black"}
+                    </Badge>
+                  </InfoRow>
+                )}
+                <InfoRow label="Your Role">{yourRole}</InfoRow>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-xs uppercase text-slate-500 font-semibold mb-1.5 flex items-center">
+                <Users className="h-3 w-3 mr-1.5" />
+                Players
+              </h3>
+              <div className="space-y-1">
+                <InfoRow label="White">
+                  <span className="font-mono text-xs" title={whitePlayerDisplay}>
+                    {formatPlayerDisplay(whitePlayerDisplay)}
+                  </span>
+                </InfoRow>
+                <InfoRow label="Black">
+                  <span className="font-mono text-xs" title={blackPlayerDisplay}>
+                    {formatPlayerDisplay(blackPlayerDisplay)}
+                  </span>
+                </InfoRow>
+              </div>
+            </div>
           </div>
         </div>
-        <div>
-          <h3 className="text-xs uppercase text-slate-500 font-semibold mb-1.5 flex items-center">
-            <Users className="h-3 w-3 mr-1.5" />
-            Players
-          </h3>
-          <div className="space-y-1">
-            <InfoRow label="White">
-              <span className="font-mono text-xs" title={whitePlayerDisplay}>
-                {formatPlayerDisplay(whitePlayerDisplay)}
-              </span>
-            </InfoRow>
-            <InfoRow label="Black">
-              <span className="font-mono text-xs" title={blackPlayerDisplay}>
-                {formatPlayerDisplay(blackPlayerDisplay)}
-              </span>
-            </InfoRow>
+
+        {/* Scrollable Move History Section */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-shrink-0 p-4 border-t border-b border-slate-700">
+            <h3 className="text-xs uppercase text-slate-500 font-semibold flex items-center">
+              <Swords className="h-3 w-3 mr-1.5" />
+              Move History ({moveHistory?.length || 0} ply)
+            </h3>
           </div>
-        </div>
 
-      </div>
-
-      <div className="flex flex-col flex-grow min-h-0">
-        <div className="p-4 border-t border-b border-slate-700">
-          <h3 className="text-xs uppercase text-slate-500 font-semibold flex items-center">
-            <Swords className="h-3 w-3 mr-1.5" />
-            Move History ({moveHistory?.length || 0} ply)
-          </h3>
-        </div>
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden sidebar-scroll">
-          <div className="p-4 text-sm pr-2">
-            {groupedMoves.length === 0 ? (
-              <p className="text-slate-500 text-center text-xs py-4">No moves yet.</p>
-            ) : (
-              <ol className="space-y-1.5">
-                {groupedMoves.map(({ moveNumber, white, black }) => (
-                  <li key={moveNumber} className="grid grid-cols-[20px_1fr_1fr] items-start gap-x-1.5 text-slate-300">
-                    <span className="text-slate-500 text-right tabular-nums pr-1 text-xs pt-1">{moveNumber}.</span>
-                    <MoveDetail move={white} />
-                    <MoveDetail move={black} />
-                  </li>
-                ))}
-              </ol>
-            )}
+          <div className="flex-1 relative">
+            <div className="absolute inset-0">
+              <ScrollArea className="h-full w-full">
+                <div className="p-4 text-sm">
+                  {groupedMoves.length === 0 ? (
+                    <p className="text-slate-500 text-center text-xs py-4">No moves yet.</p>
+                  ) : (
+                    <ol className="space-y-1.5">
+                      {groupedMoves.map(({ moveNumber, white, black }) => (
+                        <li key={moveNumber} className="grid grid-cols-[20px_1fr_1fr] items-start gap-x-1.5 text-slate-300">
+                          <span className="text-slate-500 text-right tabular-nums pr-1 text-xs pt-1">{moveNumber}.</span>
+                          <MoveDetail move={white} />
+                          <MoveDetail move={black} />
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
           </div>
         </div>
       </div>
