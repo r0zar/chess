@@ -88,7 +88,7 @@ export default async function AdminGamesPage({ searchParams }: { searchParams?: 
               ) : (
                 games.map((game) => (
                   <TableRow key={game.id} className="border-slate-700 hover:bg-slate-800/30">
-                    <TableCell className="font-medium truncate max-w-[100px] hover:max-w-none text-slate-200">
+                    <TableCell className="font-medium truncate max-w-none text-slate-200">
                       <Link href={`/admin/games/${game.id}`} className="hover:underline text-sky-400 hover:text-sky-300">
                         {game.id}
                       </Link>
@@ -103,7 +103,7 @@ export default async function AdminGamesPage({ searchParams }: { searchParams?: 
                       <RelativeTimeDisplay dateString={game.updatedAt} />
                     </TableCell>
                     <TableCell>
-                      <Button asChild variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-slate-100">
+                      <Button asChild variant="outline" size="sm" className="border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
                         <Link href={`/admin/games/${game.id}`}>
                           <Eye className="mr-2 h-4 w-4" /> View
                         </Link>
@@ -120,10 +120,10 @@ export default async function AdminGamesPage({ searchParams }: { searchParams?: 
             Page {currentPage} of {totalPages}
           </p>
           <div className="flex gap-2">
-            <Button asChild variant="outline" disabled={currentPage <= 1} className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed">
+            <Button asChild variant="outline" disabled={currentPage <= 1} className="border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed">
               <Link href={`/admin/games?page=${currentPage - 1}`}>Previous</Link>
             </Button>
-            <Button asChild variant="outline" disabled={currentPage >= totalPages} className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-slate-100 disabled:opacity-50 disabled:cursor-not-allowed">
+            <Button asChild variant="outline" disabled={currentPage >= totalPages} className="border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:opacity-50 disabled:cursor-not-allowed">
               <Link href={`/admin/games?page=${currentPage + 1}`}>Next</Link>
             </Button>
           </div>
