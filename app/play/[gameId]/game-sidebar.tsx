@@ -276,8 +276,8 @@ export default function GameSidebar({
             Move History ({moveHistory?.length || 0} ply)
           </h3>
         </div>
-        <ScrollArea className="flex-grow">
-          <div className="p-4 text-sm">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden sidebar-scroll">
+          <div className="p-4 text-sm pr-2">
             {groupedMoves.length === 0 ? (
               <p className="text-slate-500 text-center text-xs py-4">No moves yet.</p>
             ) : (
@@ -292,7 +292,7 @@ export default function GameSidebar({
               </ol>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </div>
     </aside>
   )
