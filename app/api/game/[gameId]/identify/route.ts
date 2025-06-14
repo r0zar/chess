@@ -9,8 +9,8 @@ import { getOrCreateUser } from "@/lib/user"
 import { GameEventBroadcaster } from "@/lib/game-events"
 import { GlobalEventBroadcaster } from "@/lib/global-events"
 
-export async function POST(request: NextRequest, { params }: { params: { gameId: string } }) {
-  const { gameId } = params
+export async function POST(request: NextRequest, { params }: { params: Promise<{ gameId: string }> }) {
+  const { gameId } = await params
   console.log(`[Identify Route Game: ${gameId}] Received request.`)
   const sessionId = await getOrCreateSessionId()
 

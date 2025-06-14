@@ -142,13 +142,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     // <SidebarProvider defaultOpen={defaultOpen}> // Enable if using cookie persistence [^1]
     <SidebarProvider defaultOpen={true}>
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
         <AppSidebar />
-        <main className="flex-1 p-4 md:p-8 bg-muted/40 overflow-auto">
+        <main className="flex-1 p-4 md:p-8 bg-slate-900/50 overflow-auto text-slate-50">
           <div className="md:hidden mb-4">
             {" "}
             {/* Mobile trigger */}
-            <SidebarTrigger />
+            <SidebarTrigger className="text-slate-200 hover:text-slate-50" />
           </div>
           {children}
         </main>

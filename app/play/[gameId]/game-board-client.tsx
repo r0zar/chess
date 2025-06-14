@@ -6,7 +6,7 @@ import type { Square as LibSquare } from "react-chessboard/dist/chessboard/types
 import { ChessJsAdapter } from "@/lib/chess-logic/game"
 import type { FenString, PlayerColor, Square, PieceSymbol as LocalPieceSymbol, Move } from "@/lib/chess-logic/types"
 import { useEffect, useState, useCallback, useRef } from "react"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { useGameEvents } from "@/hooks/useGameEvents"
 import type { GameEvent } from "@/lib/game-events"
 import Auth from "@/components/auth"
@@ -375,7 +375,7 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
     const from = sourceSquare as Square
     const to = targetSquare as Square
     let promotionPiece: LocalPieceSymbol | undefined = undefined
-    const pieceDetail = chessGame.game.get(from)
+    const pieceDetail = chessGame.getPieceAt(from)
     if (pieceDetail?.type === "p") {
       if ((pieceDetail.color === "w" && to[1] === "8") || (pieceDetail.color === "b" && to[1] === "1")) {
         promotionPiece = "q" // Default to Queen
@@ -417,7 +417,7 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
 
     if (!selectedSquare) {
       // First click - select a piece
-      const pieceDetail = chessGame.game.get(sq)
+      const pieceDetail = chessGame.getPieceAt(sq)
       if (pieceDetail && pieceDetail.color === currentTurn) {
         setSelectedSquare(sq)
         const moves = chessGame.getPossibleMoves(sq)
@@ -445,7 +445,7 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
       if (currentPossibleTos.includes(sq)) {
         // Clicked a valid destination square
         let promotionPiece: LocalPieceSymbol | undefined = undefined
-        const pieceDetail = chessGame.game.get(selectedSquare)
+        const pieceDetail = chessGame.getPieceAt(selectedSquare)
         if (pieceDetail?.type === "p") {
           if ((pieceDetail.color === "w" && sq[1] === "8") || (pieceDetail.color === "b" && sq[1] === "1")) {
             promotionPiece = "q" // Default to Queen
@@ -459,7 +459,7 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
         // State like selectedSquare and possibleMoves will be cleared by handleServerMoveAndUpdateState on success
       } else {
         // Clicked an invalid square or another piece of the same color
-        const pieceDetail = chessGame.game.get(sq)
+        const pieceDetail = chessGame.getPieceAt(sq)
         if (pieceDetail && pieceDetail.color === currentTurn) {
           // Clicked another of own pieces
           setSelectedSquare(sq) // Re-select
@@ -556,7 +556,7 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
                 onPieceDrop={onPieceDrop}
                 onSquareClick={onSquareClick}
                 arePiecesDraggable={isMyTurn}
-                boardOrientation={clientPlayerColor || "w"}
+                boardOrientation={clientPlayerColor === "b" ? "black" : "white"}
                 customBoardStyle={{
                   borderRadius: "8px",
                   boxShadow: "0 5px 15px rgba(0, 0, 0, 0.3)",

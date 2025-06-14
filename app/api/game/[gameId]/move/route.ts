@@ -12,8 +12,8 @@ import { getOrCreateSessionId } from "@/lib/session"
 import { GameEventBroadcaster } from "@/lib/game-events"
 import { GlobalEventBroadcaster } from "@/lib/global-events"
 
-export async function POST(request: NextRequest, { params }: { params: { gameId: string } }) {
-  const { gameId } = params
+export async function POST(request: NextRequest, { params }: { params: Promise<{ gameId: string }> }) {
+  const { gameId } = await params
   const userId = await getOrCreateSessionId() // This is the persistent User ID
 
   let moveInput: { from: Square; to: Square; promotion?: ChessPieceSymbol }

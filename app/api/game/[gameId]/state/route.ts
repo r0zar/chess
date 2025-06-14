@@ -4,8 +4,8 @@ import type { GameData } from "@/lib/chess-data.types"
 import { type NextRequest, NextResponse } from "next/server"
 import { mapIdentityToColor } from "@/lib/chess-logic/mappers"
 
-export async function GET(request: NextRequest, { params }: { params: { gameId: string } }) {
-  const { gameId } = params
+export async function GET(request: NextRequest, { params }: { params: Promise<{ gameId: string }> }) {
+  const { gameId } = await params
 
   try {
     let gameData = await kv.hgetall<GameData>(`game:${gameId}`) // Use kv.hgetall

@@ -5,6 +5,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import GlobalEventsProvider from "@/components/global-events-provider"
+import GlobalStatsPanel from "@/components/global-stats-panel"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -38,6 +39,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <GlobalEventsProvider>
             {children}
+            <GlobalStatsPanel />
             <Toaster />
           </GlobalEventsProvider>
         </ThemeProvider>

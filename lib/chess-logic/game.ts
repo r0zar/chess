@@ -141,4 +141,14 @@ export class ChessJsAdapter implements ChessGame {
     // If game is over and not a draw, the winner is the one whose turn it ISN'T
     return this.game.turn() === "b" ? "w" : "b" // If it's black's turn and checkmate, white won.
   }
+
+  // Public method to get piece details at a specific square
+  getPieceAt(square: Square): { type: PieceSymbol; color: PlayerColor } | null {
+    const piece = this.game.get(square as ChessJsSquare)
+    if (!piece) return null
+    return {
+      type: piece.type as PieceSymbol,
+      color: piece.color === "w" ? "w" : "b"
+    }
+  }
 }

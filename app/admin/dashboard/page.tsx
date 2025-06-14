@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { kv } from "@/lib/kv"
 import { Activity, Users, Gamepad2, BarChart3 } from "lucide-react"
+import SimpleConnectionsDashboard from "@/components/admin/simple-connections"
 
 async function getDashboardStats() {
   // Fetch all stats in parallel for efficiency
@@ -53,14 +54,14 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold font-crimson">Admin Dashboard</h1>
-      <Card>
+      <h1 className="text-3xl font-bold font-crimson text-slate-100">Admin Dashboard</h1>
+      <Card className="bg-slate-800/70 border-slate-700">
         <CardHeader>
-          <CardTitle>Data Source Notice</CardTitle>
+          <CardTitle className="text-slate-200">Data Source Notice</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            This dashboard is now populated with <span className="text-primary font-semibold">live data</span> from the
+          <p className="text-sm text-slate-300">
+            This dashboard is now populated with <span className="text-sky-400 font-semibold">live data</span> from the
             Vercel KV database. Some metrics like 'Active Games' and 'Avg. Moves' require scanning all game records,
             which may be slow on a large scale. The 'Total Users' count reflects users created since this tracking was
             implemented.
@@ -69,67 +70,72 @@ export default async function AdminDashboardPage() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="bg-slate-800/70 border-slate-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Games</CardTitle>
-            <Gamepad2 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-slate-200">Active Games</CardTitle>
+            <Gamepad2 className="h-4 w-4 text-slate-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activeGames}</div>
-            <p className="text-xs text-muted-foreground">Games with status 'ongoing'</p>
+            <div className="text-2xl font-bold text-slate-100">{activeGames}</div>
+            <p className="text-xs text-slate-400">Games with status 'ongoing'</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-slate-800/70 border-slate-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Games</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-slate-200">Total Games</CardTitle>
+            <Activity className="h-4 w-4 text-slate-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalGames}</div>
-            <p className="text-xs text-muted-foreground">Completed or ongoing</p>
+            <div className="text-2xl font-bold text-slate-100">{totalGames}</div>
+            <p className="text-xs text-slate-400">Completed or ongoing</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-slate-800/70 border-slate-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-slate-200">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-slate-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{registeredUsers}</div>
-            <p className="text-xs text-muted-foreground">Unique sessions created (since tracking)</p>
+            <div className="text-2xl font-bold text-slate-100">{registeredUsers}</div>
+            <p className="text-xs text-slate-400">Unique sessions created (since tracking)</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-slate-800/70 border-slate-700">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Moves/Game</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-slate-200">Avg. Moves/Game</CardTitle>
+            <BarChart3 className="h-4 w-4 text-slate-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{avgMoves}</div>
-            <p className="text-xs text-muted-foreground">Average across all games</p>
+            <div className="text-2xl font-bold text-slate-100">{avgMoves}</div>
+            <p className="text-xs text-slate-400">Average across all games</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
+        <Card className="bg-slate-800/70 border-slate-700">
           <CardHeader>
-            <CardTitle>Recent Game Activity</CardTitle>
-            <CardDescription>A list of recently updated games can be found on the 'Games' page.</CardDescription>
+            <CardTitle className="text-slate-200">Recent Game Activity</CardTitle>
+            <CardDescription className="text-slate-400">A list of recently updated games can be found on the 'Games' page.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">Live game list is available in the side navigation.</p>
+            <p className="text-slate-300">Live game list is available in the side navigation.</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-slate-800/70 border-slate-700">
           <CardHeader>
-            <CardTitle>System Health</CardTitle>
-            <CardDescription>Overview of system status.</CardDescription>
+            <CardTitle className="text-slate-200">System Health</CardTitle>
+            <CardDescription className="text-slate-400">Overview of system status.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-green-500 font-semibold">All systems operational.</p>
+            <p className="text-green-400 font-semibold">All systems operational.</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Real-time Connection Debug Panel */}
+      <div className="mt-8">
+        <SimpleConnectionsDashboard />
       </div>
     </div>
   )

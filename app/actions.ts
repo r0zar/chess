@@ -36,11 +36,13 @@ export async function createAndNavigateToGame() {
     await kv.zadd("games_by_update_time", { score: now, member: gameId })
 
     // Broadcast game creation to global events
+    console.log('[CreateGame] Broadcasting global event for game creation:', { gameId, userId })
     GlobalEventBroadcaster.getInstance().broadcastGameActivity(
       gameId,
       'created',
       userId
     )
+    console.log('[CreateGame] Global event broadcast completed')
   } catch (kvError) {
     // This catch block is specifically for errors during KV operations
     console.error("Vercel KV Action: Error during KV operations in createAndNavigateToGame:", kvError)

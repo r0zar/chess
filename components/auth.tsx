@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { connect, disconnect, isConnected, getLocalStorage } from "@stacks/connect"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { LogIn, LogOut } from "lucide-react" // Added UserCircle
 
 interface AuthProps {
@@ -48,29 +48,38 @@ export default function Auth({ onConnect, onDisconnect }: AuthProps) {
 
   const handleConnectWallet = async () => {
     try {
-      await connect({
-        onFinish: (payload) => {
-          // Use onFinish for better UX
-          const address = payload.stxAddress
-          if (address) {
-            setStxAddress(address)
-            onConnect(address) // This onConnect is from props, for parent component
-            // toast({ title: "Wallet Connected", description: `Address: ${address.substring(0, 6)}...` }) // Toast handled by parent
-          } else {
-            throw new Error("Could not retrieve STX address after connecting.")
-          }
-        },
-        onCancel: () => {
-          toast({
-            title: "Connection Canceled",
-            description: "Wallet connection process was canceled.",
-            variant: "default",
-          })
-        },
-      })
+      await connect()
+
+      // Get the address after successful connection
+      const address = getStxAddressFromStorage()
+      if (address) {
+        setStxAddress(address)
+        onConnect(address) // This onConnect is from props, for parent component
+        toast({
+          title: "Wallet Connected",
+          description: `Address: ${address.substring(0, 6)}...${address.substring(address.length - 4)}`
+        })
+      } else {
+        throw new Error("Could not retrieve STX address after connecting.")
+      }
     } catch (error) {
       console.error("Error connecting wallet:", error)
-      toast({ title: "Connection Error", description: (error as Error).message, variant: "destructive" })
+
+      // Check if it was user cancellation vs actual error
+      const errorMessage = (error as Error).message
+      if (errorMessage.includes("User denied") || errorMessage.includes("cancelled") || errorMessage.includes("canceled")) {
+        toast({
+          title: "Connection Canceled",
+          description: "Wallet connection process was canceled.",
+          variant: "default",
+        })
+      } else {
+        toast({
+          title: "Connection Error",
+          description: errorMessage,
+          variant: "destructive"
+        })
+      }
     }
   }
 

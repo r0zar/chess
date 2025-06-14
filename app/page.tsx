@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge"
 import type { GameData } from "@/lib/chess-data.types"
 import RelativeTimeDisplay from "@/components/relative-time-display"
 import CreateGameButton from "./create-game-button"
+import ChallengeRequestButton from "@/components/challenge-request-button"
 import Auth from "@/components/auth"
 import { useState, useEffect, useCallback } from "react"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { isConnected, getLocalStorage } from "@stacks/connect"
 import { ListChecks, Loader2, Users, Crown, CircleUser } from "lucide-react" // Added CircleUser
 
@@ -131,8 +132,9 @@ export default function HomePage() {
             Engage in classic chess battles on the Stacks blockchain. Connect your wallet to create games, track your
             record, or play as a guest.
           </p>
-          <div className="flex justify-center">
+          <div className="flex justify-center gap-4 flex-wrap">
             <CreateGameButton />
+            <ChallengeRequestButton />
           </div>
           {stxAddress && (
             <p className="mt-6 text-sm text-slate-400">

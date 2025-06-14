@@ -96,7 +96,7 @@ importers:
         specifier: latest
         version: 8.1.9
       '@vercel/kv':
-        specifier: latest
+        specifier: ^3.0.0
         version: 3.0.0
       autoprefixer:
         specifier: ^10.4.20

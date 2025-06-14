@@ -1,5 +1,6 @@
 import type { Move, PlayerColor, GameState } from "./chess-logic/types"
 import type { GameStatus } from "./chess-data.types"
+import { ConnectionStatsManager } from "./connection-stats"
 
 export type GameEvent =
     | { type: 'move'; data: { move: Move; gameState: { fen: string; status: GameStatus; winner?: PlayerColor; turn: PlayerColor }; playerId: string } }
@@ -22,7 +23,7 @@ export class GameEventBroadcaster {
     private static gameSubscriptions = new Map<string, Set<string>>()
     private static heartbeatIntervals = new Map<string, NodeJS.Timeout>()
 
-    static addConnection(gameId: string, userId: string, controller: ReadableStreamDefaultController): string {
+    static addConnection(gameId: string, userId: string, controller: ReadableStreamDefaultController, gameData?: { playerWhiteId?: string; playerBlackId?: string; playerWhiteAddress?: string; playerBlackAddress?: string }): string {
         const connectionId = `${gameId}:${userId}:${Date.now()}`
 
         // Store connection
@@ -40,10 +41,37 @@ export class GameEventBroadcaster {
         }
         this.gameSubscriptions.get(gameId)!.add(connectionId)
 
+        // Determine if user is a player or spectator
+        let role: 'player' | 'spectator' = 'spectator'
+        let playerColor: 'w' | 'b' | undefined = undefined
+        let userAddress: string | undefined = undefined
+
+        if (gameData) {
+            if (gameData.playerWhiteId === userId) {
+                role = 'player'
+                playerColor = 'w'
+                userAddress = gameData.playerWhiteAddress || undefined
+            } else if (gameData.playerBlackId === userId) {
+                role = 'player'
+                playerColor = 'b'
+                userAddress = gameData.playerBlackAddress || undefined
+            }
+        }
+
+        // Add to connection stats
+        ConnectionStatsManager.getInstance().addGameConnection(
+            gameId,
+            connectionId,
+            userId,
+            role,
+            playerColor,
+            userAddress
+        )
+
         // Start heartbeat
         this.startHeartbeat(connectionId)
 
-        console.log(`[GameEventBroadcaster] Added connection ${connectionId} for game ${gameId}`)
+        console.log(`[GameEventBroadcaster] Added connection ${connectionId} for game ${gameId} as ${role}${playerColor ? ` (${playerColor})` : ''}`)
         return connectionId
     }
 
@@ -64,6 +92,9 @@ export class GameEventBroadcaster {
                 this.gameSubscriptions.delete(gameId)
             }
         }
+
+        // Remove from connection stats
+        ConnectionStatsManager.getInstance().removeGameConnection(gameId, connectionId)
 
         // Clear heartbeat
         const heartbeatInterval = this.heartbeatIntervals.get(connectionId)

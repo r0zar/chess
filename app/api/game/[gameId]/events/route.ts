@@ -11,16 +11,17 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { gameId: string } }
+    { params }: { params: Promise<{ gameId: string }> }
 ) {
     const { gameId } = await params
     const userId = await getOrCreateSessionId()
 
     console.log(`[SSE Events] New connection request for game ${gameId} from user ${userId}`)
 
-    // Verify game exists
+    // Verify game exists and get game data
+    let gameData: GameData | null = null
     try {
-        const gameData = await kv.hgetall(`game:${gameId}`) as GameData | null
+        gameData = await kv.hgetall(`game:${gameId}`) as GameData | null
         if (!gameData || !gameData.currentFen) {
             return new Response("Game not found", { status: 404 })
         }
@@ -35,7 +36,13 @@ export async function GET(
             console.log(`[SSE Events] Starting SSE stream for game ${gameId}, user ${userId}`)
 
             // Add connection to broadcaster
-            const connectionId = GameEventBroadcaster.addConnection(gameId, userId, controller)
+            const gameConnectionData = gameData ? {
+                playerWhiteId: gameData.playerWhiteId || undefined,
+                playerBlackId: gameData.playerBlackId || undefined,
+                playerWhiteAddress: gameData.playerWhiteAddress || undefined,
+                playerBlackAddress: gameData.playerBlackAddress || undefined
+            } : undefined
+            const connectionId = GameEventBroadcaster.addConnection(gameId, userId, controller, gameConnectionData)
 
             // Send initial connection confirmation
             const welcomeEvent = `event: connected\ndata: ${JSON.stringify({
