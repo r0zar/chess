@@ -27,24 +27,19 @@ export default function Auth({ onConnect, onDisconnect }: AuthProps) {
 
   useEffect(() => {
     const address = getStxAddressFromStorage()
-    if (address) {
+    if (address && stxAddress !== address) {
+      // Only call onConnect when the address actually changes (not on every mount)
       setStxAddress(address)
-      // Call onConnect only if it hasn't been called for this address yet,
-      // or if the component is re-initializing with a connected state.
-      // This avoids redundant onConnect calls on every re-render.
-      if (stxAddress !== address) {
-        // Check if address actually changed
-        onConnect(address)
-      }
-    } else {
-      // If disconnected, ensure local state is null
-      if (stxAddress !== null) {
-        setStxAddress(null)
-        // onDisconnect(); // Potentially call onDisconnect if state was previously connected
-      }
+      onConnect(address)
+    } else if (!address && stxAddress !== null) {
+      // Only call onDisconnect when we actually disconnect
+      setStxAddress(null)
+      onDisconnect()
+    } else if (address && stxAddress === null) {
+      // Silent re-initialization - just update state without triggering callbacks
+      setStxAddress(address)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [getStxAddressFromStorage]) // Removed onConnect and stxAddress from deps to control calls
+  }, [stxAddress, getStxAddressFromStorage, onConnect, onDisconnect])
 
   const handleConnectWallet = async () => {
     try {
@@ -54,11 +49,7 @@ export default function Auth({ onConnect, onDisconnect }: AuthProps) {
       const address = getStxAddressFromStorage()
       if (address) {
         setStxAddress(address)
-        onConnect(address) // This onConnect is from props, for parent component
-        toast({
-          title: "Wallet Connected",
-          description: `Address: ${address.substring(0, 6)}...${address.substring(address.length - 4)}`
-        })
+        onConnect(address) // This onConnect is from props, parent component handles the success toast
       } else {
         throw new Error("Could not retrieve STX address after connecting.")
       }

@@ -19,10 +19,19 @@ export default function CreateGameButton() {
       await createAndNavigateToGame()
       // Server action handles redirection, no client-side navigation needed here.
     } catch (error) {
+      // Check if this is a Next.js redirect error (which is expected)
+      const errorMessage = (error as Error).message || ""
+      if (errorMessage.includes("NEXT_REDIRECT")) {
+        // This is a successful redirect, not an actual error
+        console.log("Game created successfully, redirecting...")
+        return
+      }
+
+      // Only show toast for actual errors
       console.error("Error creating new game:", error)
       toast({
         title: "Error Creating Game",
-        description: (error as Error).message || "Could not create a new game. Please try again.",
+        description: errorMessage || "Could not create a new game. Please try again.",
         variant: "destructive",
       })
     } finally {

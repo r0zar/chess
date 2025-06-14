@@ -37,10 +37,11 @@ export async function createAndNavigateToGame() {
 
     // Broadcast game creation to global events
     console.log('[CreateGame] Broadcasting global event for game creation:', { gameId, userId })
-    GlobalEventBroadcaster.getInstance().broadcastGameActivity(
+    await GlobalEventBroadcaster.getInstance().broadcastGameActivity(
       gameId,
       'created',
-      userId
+      userId,
+      undefined // userAddress not available in server action
     )
     console.log('[CreateGame] Global event broadcast completed')
   } catch (kvError) {

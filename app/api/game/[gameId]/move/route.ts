@@ -9,8 +9,7 @@ import type { GameData, MoveData, GameStatus } from "@/lib/chess-data.types"
 import { type NextRequest, NextResponse } from "next/server"
 import { cleanKVData, mapColorToIdentity, pieceSymbolToIdentity } from "@/lib/chess-logic/mappers"
 import { getOrCreateSessionId } from "@/lib/session"
-import { GameEventBroadcaster } from "@/lib/game-events"
-import { GlobalEventBroadcaster } from "@/lib/global-events"
+import { UnifiedConnectionManager } from "@/lib/unified-connection-manager"
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ gameId: string }> }) {
   const { gameId } = await params
@@ -152,9 +151,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     await kv.rpush(movesListKey, moveDataString)
 
-    // Broadcast move event to all connected clients (except the player who made the move)
-    GameEventBroadcaster.broadcast(gameId, {
+    // *** UNIFIED EVENT BROADCASTING ***
+    console.log(`[Move Route Game: ${gameId}] *** BROADCASTING MOVE VIA UNIFIED SYSTEM ***`)
+    console.log(`[Move Route Game: ${gameId}] Player who made move: ${userId}`)
+
+    // Broadcast move event to game subscribers (exclude the player who made the move)
+    await UnifiedConnectionManager.broadcast({
       type: 'move',
+      gameId,
       data: {
         move: moveResult,
         gameState: {
@@ -165,17 +169,23 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         },
         playerId: userId
       }
-    }, userId) // Exclude the player who made the move
+    }, gameId, userId) // Target game, exclude moving player
 
-    // Broadcast move to global events for all users in the app
+    console.log(`[Move Route Game: ${gameId}] Move event broadcast completed`)
+
+    // Broadcast move activity globally
     const playerAddress = currentTurnColor === "w" ? gameRecord.playerWhiteAddress : gameRecord.playerBlackAddress
-    GlobalEventBroadcaster.getInstance().broadcastMoveActivity(
-      gameId,
-      userId,
-      playerAddress || undefined,
-      currentTurnColor,
-      moveResult.san
-    )
+    await UnifiedConnectionManager.broadcast({
+      type: 'move_activity',
+      data: {
+        gameId,
+        userId,
+        userAddress: playerAddress || undefined,
+        playerColor: currentTurnColor,
+        move: moveResult.san,
+        timestamp: new Date().toISOString()
+      }
+    }) // Global broadcast (no gameId filter)
 
     // Broadcast game end event if the game is over
     if (newGameStatus !== "ongoing" && newGameStatus !== "pending") {
@@ -188,25 +198,30 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         endReason = "Draw"
       }
 
-      GameEventBroadcaster.broadcast(gameId, {
+      // Broadcast to game subscribers
+      await UnifiedConnectionManager.broadcast({
         type: 'game_ended',
+        gameId,
         data: {
           winner: gameWinnerFromEngine,
           reason: endReason,
           status: newGameStatus
         }
-      })
+      }, gameId) // Target game only
 
-      // Broadcast game end to global events
-      GlobalEventBroadcaster.getInstance().broadcastGameActivity(
-        gameId,
-        'ended',
-        userId,
-        playerAddress || undefined,
-        undefined, // No specific player color for game end
-        newGameStatus,
-        gameWinnerFromEngine
-      )
+      // Broadcast globally
+      await UnifiedConnectionManager.broadcast({
+        type: 'game_activity',
+        data: {
+          gameId,
+          action: 'ended',
+          userId,
+          userAddress: playerAddress || undefined,
+          gameStatus: newGameStatus,
+          winner: gameWinnerFromEngine,
+          timestamp: new Date().toISOString()
+        }
+      }) // Global broadcast
     }
 
     return NextResponse.json({

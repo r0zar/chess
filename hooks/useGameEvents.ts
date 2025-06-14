@@ -56,9 +56,14 @@ export function useGameEvents(
         }
 
         eventSource.onmessage = (event) => {
+            console.log(`[useGameEvents] *** RAW EVENT RECEIVED for game ${gameId} ***`)
+            console.log(`[useGameEvents] Event type:`, event.type || 'message')
+            console.log(`[useGameEvents] Event data:`, event.data)
+            console.log(`[useGameEvents] Full event object:`, event)
+
             try {
                 const eventData = JSON.parse(event.data)
-                console.log(`[useGameEvents] Received event for game ${gameId}:`, event.type || 'message', eventData)
+                console.log(`[useGameEvents] Parsed event data:`, eventData)
 
                 // Handle specific event types
                 if (event.type === 'connected') {
@@ -82,6 +87,7 @@ export function useGameEvents(
                     data: eventData
                 }
 
+                console.log(`[useGameEvents] Calling onGameEvent with:`, gameEvent)
                 onGameEvent(gameEvent)
             } catch (error) {
                 console.error(`[useGameEvents] Error parsing SSE event:`, error, event)
@@ -92,12 +98,17 @@ export function useGameEvents(
         const eventTypes = ['move', 'player_joined', 'player_disconnected', 'game_ended', 'sync_required']
         eventTypes.forEach(eventType => {
             eventSource.addEventListener(eventType, (event) => {
+                console.log(`[useGameEvents] *** SPECIFIC EVENT LISTENER TRIGGERED ***`)
+                console.log(`[useGameEvents] Event type: ${eventType}`)
+                console.log(`[useGameEvents] Event data:`, (event as MessageEvent).data)
+
                 try {
                     const eventData = JSON.parse((event as MessageEvent).data)
                     const gameEvent: GameEvent = {
                         type: eventType as GameEvent['type'],
                         data: eventData
                     }
+                    console.log(`[useGameEvents] Calling onGameEvent from specific listener with:`, gameEvent)
                     onGameEvent(gameEvent)
                 } catch (error) {
                     console.error(`[useGameEvents] Error parsing ${eventType} event:`, error)

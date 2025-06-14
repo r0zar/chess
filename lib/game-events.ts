@@ -1,6 +1,7 @@
 import type { Move, PlayerColor, GameState } from "./chess-logic/types"
 import type { GameStatus } from "./chess-data.types"
 import { ConnectionStatsManager } from "./connection-stats"
+import { GlobalEventBroadcaster } from "./global-events"
 
 export type GameEvent =
     | { type: 'move'; data: { move: Move; gameState: { fen: string; status: GameStatus; winner?: PlayerColor; turn: PlayerColor }; playerId: string } }
@@ -26,6 +27,12 @@ export class GameEventBroadcaster {
     static addConnection(gameId: string, userId: string, controller: ReadableStreamDefaultController, gameData?: { playerWhiteId?: string; playerBlackId?: string; playerWhiteAddress?: string; playerBlackAddress?: string }): string {
         const connectionId = `${gameId}:${userId}:${Date.now()}`
 
+        console.log(`[GameEventBroadcaster] *** ADDING CONNECTION ***`)
+        console.log(`[GameEventBroadcaster] GameID: ${gameId}`)
+        console.log(`[GameEventBroadcaster] UserID: ${userId}`)
+        console.log(`[GameEventBroadcaster] ConnectionID: ${connectionId}`)
+        console.log(`[GameEventBroadcaster] Game data:`, gameData)
+
         // Store connection
         this.connections.set(connectionId, {
             controller,
@@ -38,8 +45,13 @@ export class GameEventBroadcaster {
         // Add to game subscriptions
         if (!this.gameSubscriptions.has(gameId)) {
             this.gameSubscriptions.set(gameId, new Set())
+            console.log(`[GameEventBroadcaster] Created new subscription set for game ${gameId}`)
         }
         this.gameSubscriptions.get(gameId)!.add(connectionId)
+
+        const currentGameConnections = this.gameSubscriptions.get(gameId)!.size
+        console.log(`[GameEventBroadcaster] Game ${gameId} now has ${currentGameConnections} connections`)
+        console.log(`[GameEventBroadcaster] All connections for game ${gameId}:`, Array.from(this.gameSubscriptions.get(gameId)!))
 
         // Determine if user is a player or spectator
         let role: 'player' | 'spectator' = 'spectator'
@@ -58,6 +70,8 @@ export class GameEventBroadcaster {
             }
         }
 
+        console.log(`[GameEventBroadcaster] User ${userId} role: ${role}${playerColor ? ` (${playerColor})` : ''}`)
+
         // Add to connection stats
         ConnectionStatsManager.getInstance().addGameConnection(
             gameId,
@@ -71,7 +85,12 @@ export class GameEventBroadcaster {
         // Start heartbeat
         this.startHeartbeat(connectionId)
 
+        // Broadcast updated global stats
+        GlobalEventBroadcaster.getInstance().broadcastConnectionStats()
+
         console.log(`[GameEventBroadcaster] Added connection ${connectionId} for game ${gameId} as ${role}${playerColor ? ` (${playerColor})` : ''}`)
+        console.log(`[GameEventBroadcaster] Total connections in system: ${this.connections.size}`)
+
         return connectionId
     }
 
@@ -103,11 +122,20 @@ export class GameEventBroadcaster {
             this.heartbeatIntervals.delete(connectionId)
         }
 
+        // Broadcast updated global stats
+        GlobalEventBroadcaster.getInstance().broadcastConnectionStats()
+
         console.log(`[GameEventBroadcaster] Removed connection ${connectionId} from game ${gameId}`)
     }
 
     static broadcast(gameId: string, event: GameEvent, excludeUserId?: string) {
         const gameConnections = this.gameSubscriptions.get(gameId)
+        console.log(`[GameEventBroadcaster] *** BROADCAST DEBUG for game ${gameId} ***`)
+        console.log(`[GameEventBroadcaster] Event type: ${event.type}`)
+        console.log(`[GameEventBroadcaster] Exclude userId: ${excludeUserId}`)
+        console.log(`[GameEventBroadcaster] Game connections set:`, gameConnections ? Array.from(gameConnections) : 'none')
+        console.log(`[GameEventBroadcaster] Total connections in memory:`, this.connections.size)
+
         if (!gameConnections || gameConnections.size === 0) {
             console.log(`[GameEventBroadcaster] No connections for game ${gameId}, skipping broadcast`)
             return
@@ -116,17 +144,29 @@ export class GameEventBroadcaster {
         const eventData = `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`
         let broadcastCount = 0
         let failedConnections: string[] = []
+        let excludedCount = 0
 
         for (const connectionId of gameConnections) {
             const connection = this.connections.get(connectionId)
-            if (!connection) continue
+            console.log(`[GameEventBroadcaster] Checking connection ${connectionId}:`, connection ? `userId: ${connection.userId}` : 'CONNECTION NOT FOUND')
+
+            if (!connection) {
+                console.log(`[GameEventBroadcaster] Connection ${connectionId} not found in memory`)
+                continue
+            }
 
             // Skip if this is the user who triggered the event
-            if (excludeUserId && connection.userId === excludeUserId) continue
+            if (excludeUserId && connection.userId === excludeUserId) {
+                console.log(`[GameEventBroadcaster] Skipping connection ${connectionId} - matches excluded userId ${excludeUserId}`)
+                excludedCount++
+                continue
+            }
 
             try {
+                console.log(`[GameEventBroadcaster] Sending event to connection ${connectionId} (user: ${connection.userId})`)
                 connection.controller.enqueue(eventData)
                 broadcastCount++
+                console.log(`[GameEventBroadcaster] Successfully sent event to connection ${connectionId}`)
             } catch (error) {
                 console.error(`[GameEventBroadcaster] Failed to send event to ${connectionId}:`, error)
                 failedConnections.push(connectionId)
@@ -136,6 +176,12 @@ export class GameEventBroadcaster {
         // Clean up failed connections
         failedConnections.forEach(connectionId => this.removeConnection(connectionId))
 
+        console.log(`[GameEventBroadcaster] *** BROADCAST SUMMARY for game ${gameId} ***`)
+        console.log(`[GameEventBroadcaster] Event type: ${event.type}`)
+        console.log(`[GameEventBroadcaster] Total connections checked: ${gameConnections.size}`)
+        console.log(`[GameEventBroadcaster] Excluded connections: ${excludedCount}`)
+        console.log(`[GameEventBroadcaster] Failed connections: ${failedConnections.length}`)
+        console.log(`[GameEventBroadcaster] Successful broadcasts: ${broadcastCount}`)
         console.log(`[GameEventBroadcaster] Broadcasted ${event.type} to ${broadcastCount} connections for game ${gameId}`)
     }
 
@@ -152,6 +198,45 @@ export class GameEventBroadcaster {
             const connection = this.connections.get(connectionId)
             return connection && connection.userId === userId
         })
+    }
+
+    static getDebugInfo(gameId?: string) {
+        const debugInfo: any = {
+            totalConnections: this.connections.size,
+            totalGameSubscriptions: this.gameSubscriptions.size,
+            timestamp: new Date().toISOString()
+        }
+
+        if (gameId) {
+            const gameConnections = this.gameSubscriptions.get(gameId)
+            debugInfo.gameId = gameId
+            debugInfo.gameConnections = gameConnections ? Array.from(gameConnections) : []
+            debugInfo.gameConnectionDetails = []
+
+            if (gameConnections) {
+                for (const connectionId of gameConnections) {
+                    const connection = this.connections.get(connectionId)
+                    debugInfo.gameConnectionDetails.push({
+                        connectionId,
+                        userId: connection?.userId || 'MISSING',
+                        connected: !!connection,
+                        connectedAt: connection?.connectedAt,
+                        lastHeartbeat: connection?.lastHeartbeat
+                    })
+                }
+            }
+        } else {
+            // Get all games
+            debugInfo.allGames = {}
+            for (const [gId, connections] of this.gameSubscriptions) {
+                debugInfo.allGames[gId] = {
+                    connectionCount: connections.size,
+                    connectionIds: Array.from(connections)
+                }
+            }
+        }
+
+        return debugInfo
     }
 
     private static startHeartbeat(connectionId: string) {

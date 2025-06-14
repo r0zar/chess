@@ -1,19 +1,20 @@
 "use client"
 
-import type React from "react"
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import dynamic from "next/dynamic"
 import type { Square as LibSquare } from "react-chessboard/dist/chessboard/types"
 import { ChessJsAdapter } from "@/lib/chess-logic/game"
-import type { FenString, PlayerColor, Square, PieceSymbol as LocalPieceSymbol, Move } from "@/lib/chess-logic/types"
-import { useEffect, useState, useCallback, useRef } from "react"
+import type { FenString, Square, Move, PlayerColor, PieceSymbol as LocalPieceSymbol } from "@/lib/chess-logic/types"
+import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { useGameEvents } from "@/hooks/useGameEvents"
-import type { GameEvent } from "@/lib/game-events"
+import { useRouter } from "next/navigation"
+import { getOrCreateSessionId } from "@/lib/session"
+import { useUnifiedEvents } from "@/hooks/useUnifiedEvents"
+import type { UnifiedEvent } from "@/lib/unified-connection-manager"
 import Auth from "@/components/auth"
 import Link from "next/link"
 import { ArrowLeft, Bug } from "lucide-react"
 import GameSidebar from "./game-sidebar"
-import { Button } from "@/components/ui/button"
 
 const Chessboard = dynamic(() => import("react-chessboard").then((mod) => mod.Chessboard), {
   ssr: false,
@@ -123,12 +124,12 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
   const mainContentRef = useRef<HTMLDivElement>(null)
   const [showDebug, setShowDebug] = useState(false)
   const [sseConnected, setSseConnected] = useState(false)
+  const [lastSyncToastAddress, setLastSyncToastAddress] = useState<string | null | undefined>(undefined)
+  const [clientUserId, setClientUserId] = useState<string | null>(null)
 
   console.log(
     `[GameBoardClient ${gameId}] Component RENDER. moveHistory length: ${moveHistory.length}. Fen: ${currentFen}`,
   )
-
-
 
   const updateBoardWidth = useCallback(() => {
     if (mainContentRef.current) {
@@ -167,11 +168,18 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
         setBlackPlayerDisplayAddress(data.assignedBlackAddress)
 
         setMoveHistory(data.moveHistory || [])
+
+        // Set client user ID based on player color
+        const newClientUserId = data.clientPlayerColor === 'w' ? data.assignedWhiteId :
+          data.clientPlayerColor === 'b' ? data.assignedBlackId : null
+        setClientUserId(newClientUserId || null)
+
         console.log(
-          `[GameBoardClient ${gameId}] syncGameState SUCCESS. moveHistory SET to length: ${data.moveHistory?.length || 0}. First move SAN: ${data.moveHistory?.[0]?.san}`,
+          `[GameBoardClient ${gameId}] syncGameState SUCCESS. moveHistory SET to length: ${data.moveHistory?.length || 0}. First move SAN: ${data.moveHistory?.[0]?.san}. Client user ID: ${newClientUserId}`,
         )
 
-        if (showSyncToast) {
+        if (showSyncToast && lastSyncToastAddress !== currentStxAddress) {
+          setLastSyncToastAddress(currentStxAddress)
           toast({
             title: "Game State Synced",
             description: data.clientPlayerColor
@@ -191,20 +199,32 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
         console.log(`[GameBoardClient ${gameId}] syncGameState FINISHED.`)
       }
     },
-    [gameId, toast, isRefreshing], // Added isRefreshing to prevent concurrent calls
+    [gameId, toast, isRefreshing, lastSyncToastAddress], // Added state dependencies
   )
 
   // Handle real-time game events
-  const handleGameEvent = useCallback((event: GameEvent) => {
-    console.log(`[GameBoardClient ${gameId}] Received SSE event:`, event.type, event.data)
+  const handleGameEvent = useCallback((event: UnifiedEvent) => {
+    console.log(`[GameBoardClient ${gameId}] *** HANDLING GAME EVENT ***`)
+    console.log(`[GameBoardClient ${gameId}] Event type: ${event.type}`)
+    console.log(`[GameBoardClient ${gameId}] Event data:`, event.data)
+    console.log(`[GameBoardClient ${gameId}] Current clientUserId: ${clientUserId}`)
 
     switch (event.type) {
       case 'move':
+        console.log(`[GameBoardClient ${gameId}] *** PROCESSING MOVE EVENT ***`)
+        console.log(`[GameBoardClient ${gameId}] Move event playerId: ${event.data.playerId}`)
+        console.log(`[GameBoardClient ${gameId}] Current clientUserId: ${clientUserId}`)
+        console.log(`[GameBoardClient ${gameId}] Player IDs match (should skip): ${event.data.playerId === clientUserId}`)
+
         // Only update if this move came from another player
-        if (event.data.playerId !== stxAddress) {
+        if (event.data.playerId !== clientUserId) {
           const { move, gameState } = event.data
 
-          console.log(`[GameBoardClient ${gameId}] Processing opponent move:`, move.san)
+          console.log(`[GameBoardClient ${gameId}] *** APPLYING OPPONENT MOVE ***`)
+          console.log(`[GameBoardClient ${gameId}] Move:`, move)
+          console.log(`[GameBoardClient ${gameId}] New game state:`, gameState)
+          console.log(`[GameBoardClient ${gameId}] Current FEN before update: ${currentFen}`)
+          console.log(`[GameBoardClient ${gameId}] New FEN: ${gameState.fen}`)
 
           // Update game state
           const updatedGame = new ChessJsAdapter(gameState.fen)
@@ -215,11 +235,18 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
           setWinner(gameState.winner)
 
           // Add move to history
-          setMoveHistory(prev => [...prev, move])
+          setMoveHistory(prev => {
+            const newHistory = [...prev, move]
+            console.log(`[GameBoardClient ${gameId}] Updated move history length: ${newHistory.length}`)
+            return newHistory
+          })
 
           // Clear any selection
           setPossibleMoves({})
           setSelectedSquare(null)
+
+          console.log(`[GameBoardClient ${gameId}] *** OPPONENT MOVE APPLIED SUCCESSFULLY ***`)
+          console.log(`[GameBoardClient ${gameId}] Showing toast for move: ${move.san}`)
 
           // Show notification
           toast({
@@ -227,6 +254,9 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
             description: `${move.san}`,
             duration: 3000,
           })
+        } else {
+          console.log(`[GameBoardClient ${gameId}] *** IGNORING OWN MOVE EVENT ***`)
+          console.log(`[GameBoardClient ${gameId}] Move SAN: ${event.data.move?.san}`)
         }
         break
 
@@ -269,10 +299,11 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
       default:
         console.log(`[GameBoardClient ${gameId}] Unhandled event type:`, event.type)
     }
-  }, [gameId, stxAddress, toast, syncGameState])
+  }, [gameId, clientUserId, toast, syncGameState])
 
   // Set up SSE connection
-  const { isConnected, reconnect, connectionState } = useGameEvents(gameId, handleGameEvent, {
+  const { isConnected, reconnect, connectionState } = useUnifiedEvents(handleGameEvent, {
+    gameId,
     enabled: true,
     reconnectDelay: 3000,
     maxReconnectAttempts: 5
@@ -589,6 +620,7 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
         isRefreshing={isRefreshing}
         onRefresh={() => {
           console.log(`[GameBoardClient ${gameId}] Manual refresh clicked. Calling syncGameState.`)
+          setLastSyncToastAddress(undefined) // Reset to allow refresh toast
           syncGameState(stxAddress, true)
         }}
         connectionState={connectionState}
