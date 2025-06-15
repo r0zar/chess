@@ -15,7 +15,7 @@ export async function GET() {
     gameIds.forEach((id) => {
       if (typeof id === "string") {
         // Ensure we fetch all necessary fields, including player IDs and addresses
-        multi.hgetall<GameData>(`game:${id}`)
+        multi.hgetall(`game:${id}`)
       }
     })
     const results = (await multi.exec()) as (GameData | null)[]

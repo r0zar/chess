@@ -9,37 +9,7 @@ import type { GameData, MoveData, GameStatus } from "@/lib/chess-data.types"
 import { type NextRequest, NextResponse } from "next/server"
 import { cleanKVData, mapColorToIdentity, pieceSymbolToIdentity } from "@/lib/chess-logic/mappers"
 import { getOrCreateSessionId } from "@/lib/session"
-
-// PartyKit broadcast helper
-async function broadcastToPartyKit(gameId: string, event: any) {
-  try {
-    // Automatically determine PartyKit host
-    const isProduction = process.env.NODE_ENV === 'production'
-    const partyKitHost = isProduction
-      ? process.env.PARTYKIT_HOST || 'chess-game.r0zar.partykit.dev'
-      : 'localhost:1999'
-
-    const protocol = isProduction ? 'https' : 'http'
-    const url = `${protocol}://${partyKitHost}/party/${gameId}`
-
-    console.log(`[Move API] Broadcasting to PartyKit: ${url}`)
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(event)
-    })
-
-    if (!response.ok) {
-      console.error(`[Move API] PartyKit broadcast failed:`, response.status, response.statusText)
-    } else {
-      console.log(`[Move API] Successfully broadcasted ${event.type} to PartyKit`)
-    }
-  } catch (error) {
-    console.error(`[Move API] PartyKit broadcast error:`, error)
-    // Don't fail the move if PartyKit is down - the move is still valid
-  }
-}
+import { broadcastPartyKitEvent } from "@/lib/partykit"
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ gameId: string }> }) {
   const { gameId } = await params
@@ -186,18 +156,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     console.log(`[Move Route Game: ${gameId}] Player who made move: ${userId}`)
 
     // Broadcast move event to all connected players
-    await broadcastToPartyKit(gameId, {
-      type: 'move',
-      data: {
-        move: moveResult,
-        gameState: {
-          fen: fenAfterMove,
-          status: newGameStatus,
-          winner: gameWinnerFromEngine,
-          turn: game.getTurn()
-        },
-        playerId: userId
-      }
+    await broadcastPartyKitEvent({
+      event: {
+        type: 'move',
+        data: {
+          move: moveResult,
+          gameState: {
+            fen: fenAfterMove,
+            status: newGameStatus,
+            winner: gameWinnerFromEngine,
+            turn: game.getTurn()
+          },
+          playerId: userId
+        }
+      },
+      gameId
     })
 
     console.log(`[Move Route Game: ${gameId}] Move event broadcast completed`)
@@ -213,13 +186,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         endReason = "Draw"
       }
 
-      await broadcastToPartyKit(gameId, {
-        type: 'game_ended',
-        data: {
-          winner: gameWinnerFromEngine,
-          reason: endReason,
-          status: newGameStatus
-        }
+      await broadcastPartyKitEvent({
+        event: {
+          type: 'game_ended',
+          data: {
+            winner: gameWinnerFromEngine,
+            reason: endReason,
+            status: newGameStatus
+          }
+        },
+        gameId
       })
     }
 

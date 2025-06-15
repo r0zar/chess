@@ -8,7 +8,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { gameId } = await params
 
   try {
-    let gameData = await kv.hgetall<GameData>(`game:${gameId}`) // Use kv.hgetall
+    let gameData = await kv.hgetall(`game:${gameId}`) as GameData | null
 
     if (!gameData || Object.keys(gameData).length === 0) {
       // hgetall returns null or empty object if not found
@@ -20,24 +20,26 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       }
       // If key exists but gameData is empty, it might be an issue or an uninitialized game
       // For now, treat as not found if critical fields like currentFen are missing.
-      if (!gameData.currentFen) {
+      if (!gameData || !gameData.currentFen) {
         return NextResponse.json({ message: "Game data incomplete or not found." }, { status: 404 })
       }
     }
 
-    if (gameData.status === "pending") {
+    // Defensive: gameData is not null here
+    if (gameData && gameData.status === "pending") {
       console.log(`Game ${gameId} is pending, attempting to set to ongoing.`)
       const updatedAt = Date.now()
       const updatedFields: Partial<GameData> = { status: "ongoing", updatedAt }
       await kv.hset(`game:${gameId}`, updatedFields) // Use kv.hset
       await kv.zadd("games_by_update_time", { score: updatedAt, member: gameId }) // Use kv.zadd
 
-      gameData = { ...gameData, ...updatedFields }
+      // Ensure id is always a string
+      gameData = { ...gameData, ...updatedFields, id: gameData.id ?? gameId } as GameData
       console.log(`Game ${gameId} successfully updated to ongoing.`)
     }
 
-    if (!gameData.currentFen) {
-      console.error(`Game ${gameId} has an invalid FEN:`, gameData.currentFen)
+    if (!gameData || !gameData.currentFen) {
+      console.error(`Game ${gameId} has an invalid FEN:`, gameData ? gameData.currentFen : null)
       return NextResponse.json({ message: "Game data is corrupted (invalid FEN)." }, { status: 500 })
     }
 
