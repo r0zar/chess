@@ -5,14 +5,11 @@ import dynamic from "next/dynamic"
 import type { Square as LibSquare } from "react-chessboard/dist/chessboard/types"
 import { ChessJsAdapter } from "@/lib/chess-logic/game"
 import type { FenString, Square, Move, PlayerColor, PieceSymbol as LocalPieceSymbol } from "@/lib/chess-logic/types"
-import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { useRouter } from "next/navigation"
-import { getOrCreateSessionId } from "@/lib/session"
-import { usePartyKit } from "@/hooks/usePartyKit"
+import { useGameEvents } from "@/hooks/useGameEvents"
 import Auth from "@/components/auth"
 import Link from "next/link"
-import { ArrowLeft, Bug } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import GameSidebar from "./game-sidebar"
 
 const Chessboard = dynamic(() => import("react-chessboard").then((mod) => mod.Chessboard), {
@@ -122,7 +119,6 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
   const [boardWidth, setBoardWidth] = useState(500)
   const mainContentRef = useRef<HTMLDivElement>(null)
   const [showDebug, setShowDebug] = useState(false)
-  const [sseConnected, setSseConnected] = useState(false)
   const [lastSyncToastAddress, setLastSyncToastAddress] = useState<string | null | undefined>(undefined)
   const [clientUserId, setClientUserId] = useState<string | null>(null)
 
@@ -301,14 +297,9 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
   }, [gameId, clientUserId, toast, syncGameState])
 
   // Set up PartyKit connection
-  const { isConnected, connectionState } = usePartyKit(gameId, handleGameEvent, {
+  const { isConnected, connectionState } = useGameEvents(gameId, handleGameEvent, {
     enabled: true
   })
-
-  // Update connection status - now reactive to connectionState changes
-  useEffect(() => {
-    setSseConnected(isConnected())
-  }, [isConnected, connectionState])
 
   // Initial game state sync
   useEffect(() => {
@@ -546,7 +537,7 @@ export default function GameBoardClient({ gameId, publicInitialGameState }: Game
               Back to Lobby
             </Link>
             <div className="flex items-center gap-2">
-              <Auth onConnect={handleConnect} onDisconnect={handleDisconnect} />
+              <Auth stxAddress={stxAddress} onConnect={handleConnect} onDisconnect={handleDisconnect} />
             </div>
           </div>
         </header>

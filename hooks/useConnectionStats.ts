@@ -1,8 +1,20 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import type { ConnectionStats } from '@/lib/connection-stats'
-import { useGlobalEventsContext } from '@/components/global-events-provider'
+import { useGlobalEvents } from '@/components/global-events-provider'
+
+// Inline ConnectionStats type based on usage
+interface ConnectionStats {
+    global: {
+        totalConnections: number
+        activePlayers: number
+        totalSpectators: number
+        connectedUsers: string[]
+    }
+    gameSpecific?: {
+        // Define as needed
+    }
+}
 
 interface UseConnectionStatsOptions {
     gameId?: string // If provided, will also track game-specific stats
@@ -22,7 +34,7 @@ export function useConnectionStats(options: UseConnectionStatsOptions = {}) {
     const [isLoading, setIsLoading] = useState(true)
 
     // Subscribe to global events for connection stats updates
-    const globalEvents = useGlobalEventsContext()
+    const globalEvents = useGlobalEvents()
 
     // Handle connection stats events from useGlobalEvents
     useEffect(() => {
@@ -86,7 +98,7 @@ export function useConnectionStats(options: UseConnectionStatsOptions = {}) {
         globalStats,
         gameStats,
         isLoading,
-        isConnected: globalEvents.isConnected(),
+        isConnected: globalEvents.isConnected,
         refetch: fetchStats
     }
 } 

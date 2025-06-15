@@ -3,8 +3,11 @@ import PartySocket from 'partysocket'
 
 interface UseGameEventsOptions {
     enabled?: boolean
+    host?: string
     reconnectDelay?: number
     maxReconnectAttempts?: number
+    allowSend?: boolean
+    allowReconnect?: boolean
 }
 
 export function useGameEvents(
@@ -14,9 +17,19 @@ export function useGameEvents(
 ) {
     const {
         enabled = true,
+        host,
         reconnectDelay = 3000,
-        maxReconnectAttempts = 5
+        maxReconnectAttempts = 5,
+        allowSend = true,
+        allowReconnect = true,
     } = options
+
+    // Auto-determine PartyKit host
+    const partyKitHost = host || (
+        typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+            ? 'chess-game.r0zar.partykit.dev'
+            : 'localhost:1999'
+    )
 
     const socketRef = useRef<PartySocket | null>(null)
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -41,10 +54,6 @@ export function useGameEvents(
         if (!enabled || !gameId) return
         cleanup()
         setConnectionState('connecting')
-        const partyKitHost =
-            typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-                ? 'chess-game.r0zar.partykit.dev'
-                : 'localhost:1999'
         const socket = new PartySocket({
             host: partyKitHost,
             room: gameId,
@@ -66,7 +75,7 @@ export function useGameEvents(
         socket.onclose = () => {
             isConnectedRef.current = false
             setConnectionState('disconnected')
-            if (enabled && reconnectAttemptsRef.current < maxReconnectAttempts) {
+            if (enabled && allowReconnect && reconnectAttemptsRef.current < maxReconnectAttempts) {
                 reconnectAttemptsRef.current++
                 const delay = reconnectDelay * Math.pow(2, reconnectAttemptsRef.current - 1)
                 reconnectTimeoutRef.current = setTimeout(connect, delay)
@@ -76,7 +85,7 @@ export function useGameEvents(
             setConnectionState('disconnected')
         }
         socketRef.current = socket
-    }, [gameId, enabled, onGameEvent, reconnectDelay, maxReconnectAttempts, cleanup])
+    }, [gameId, enabled, onGameEvent, reconnectDelay, maxReconnectAttempts, allowReconnect, partyKitHost, cleanup])
 
     const disconnect = useCallback(() => {
         cleanup()
@@ -86,6 +95,15 @@ export function useGameEvents(
         reconnectAttemptsRef.current = 0
         connect()
     }, [connect])
+
+    const send = useCallback((data: any) => {
+        if (!allowSend) return
+        if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify(data))
+        } else {
+            console.warn(`[useGameEvents] Cannot send - not connected to game ${gameId}`)
+        }
+    }, [gameId, allowSend])
 
     const isConnected = useCallback(() => {
         return connectionState === 'connected' && isConnectedRef.current && socketRef.current?.readyState === WebSocket.OPEN
@@ -108,6 +126,8 @@ export function useGameEvents(
         disconnect,
         reconnect,
         connectionCount: reconnectAttemptsRef.current,
-        connectionState
+        connectionState,
+        connect,
+        send: allowSend ? send : undefined,
     }
 } 
