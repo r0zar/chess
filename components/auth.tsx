@@ -7,48 +7,24 @@ import { useToast } from "@/hooks/use-toast"
 import { LogIn, LogOut } from "lucide-react" // Added UserCircle
 
 interface AuthProps {
+  stxAddress: string | null
   onConnect: (address: string) => void
   onDisconnect: () => void
 }
 
-export default function Auth({ onConnect, onDisconnect }: AuthProps) {
-  const [stxAddress, setStxAddress] = useState<string | null>(null)
+export default function Auth({ stxAddress, onConnect, onDisconnect }: AuthProps) {
   const { toast } = useToast()
-
-  const getStxAddressFromStorage = useCallback(() => {
-    if (!isConnected()) return null
-    const storage = getLocalStorage()
-    const stxAddresses = storage?.addresses?.stx
-    if (stxAddresses && stxAddresses.length > 0 && stxAddresses[0].address) {
-      return stxAddresses[0].address
-    }
-    return null
-  }, [])
-
-  useEffect(() => {
-    const address = getStxAddressFromStorage()
-    if (address && stxAddress !== address) {
-      // Only call onConnect when the address actually changes (not on every mount)
-      setStxAddress(address)
-    } else if (!address && stxAddress !== null) {
-      // Only call onDisconnect when we actually disconnect
-      setStxAddress(null)
-      onDisconnect()
-    } else if (address && stxAddress === null) {
-      // Silent re-initialization - just update state without triggering callbacks
-      setStxAddress(address)
-    }
-  }, [stxAddress, getStxAddressFromStorage, onConnect, onDisconnect])
 
   const handleConnectWallet = async () => {
     try {
       await connect()
 
       // Get the address after successful connection
-      const address = getStxAddressFromStorage()
+      const storage = getLocalStorage()
+      const stxAddresses = storage?.addresses?.stx
+      const address = stxAddresses && stxAddresses.length > 0 && stxAddresses[0].address ? stxAddresses[0].address : null
       if (address) {
-        setStxAddress(address)
-        onConnect(address) // This onConnect is from props, parent component handles the success toast
+        onConnect(address)
       } else {
         throw new Error("Could not retrieve STX address after connecting.")
       }
@@ -76,7 +52,6 @@ export default function Auth({ onConnect, onDisconnect }: AuthProps) {
   const handleDisconnectWallet = async () => {
     try {
       await disconnect()
-      setStxAddress(null)
       onDisconnect() // This onDisconnect is from props
       // toast({ title: "Wallet Disconnected" }) // Toast handled by parent
     } catch (error) {
