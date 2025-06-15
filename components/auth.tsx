@@ -30,7 +30,6 @@ export default function Auth({ onConnect, onDisconnect }: AuthProps) {
     if (address && stxAddress !== address) {
       // Only call onConnect when the address actually changes (not on every mount)
       setStxAddress(address)
-      onConnect(address)
     } else if (!address && stxAddress !== null) {
       // Only call onDisconnect when we actually disconnect
       setStxAddress(null)

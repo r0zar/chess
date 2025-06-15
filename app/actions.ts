@@ -6,15 +6,31 @@ import type { GameData } from "@/lib/chess-data.types"
 import { ChessJsAdapter } from "@/lib/chess-logic/game"
 import { v4 as uuidv4 } from "uuid"
 import { cleanKVData } from "@/lib/chess-logic/mappers"
-import { GlobalEventBroadcaster } from "@/lib/global-events"
-import { getOrCreateSessionId } from "@/lib/session"
 
 const INITIAL_FEN = new ChessJsAdapter().getFen()
+
+// Add PartyKit global event broadcast helper
+async function broadcastGlobalEvent(event: any) {
+  try {
+    const isProduction = process.env.NODE_ENV === 'production'
+    const partyKitHost = isProduction
+      ? process.env.PARTYKIT_HOST || 'chess-game.r0zar.partykit.dev'
+      : 'localhost:1999'
+    const protocol = isProduction ? 'https' : 'http'
+    const url = `${protocol}://${partyKitHost}/party/global-events`
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(event)
+    })
+  } catch (err) {
+    console.error('[PartyKit] Failed to broadcast global event:', err)
+  }
+}
 
 export async function createAndNavigateToGame() {
   const gameId = uuidv4()
   const now = Date.now()
-  const userId = await getOrCreateSessionId()
 
   const newGameData: GameData = {
     id: gameId,
@@ -34,22 +50,22 @@ export async function createAndNavigateToGame() {
     // Perform KV operations
     await kv.hset(`game:${gameId}`, cleanedGameData)
     await kv.zadd("games_by_update_time", { score: now, member: gameId })
-
-    // Broadcast game creation to global events
-    console.log('[CreateGame] Broadcasting global event for game creation:', { gameId, userId })
-    await GlobalEventBroadcaster.getInstance().broadcastGameActivity(
-      gameId,
-      'created',
-      userId,
-      undefined // userAddress not available in server action
-    )
-    console.log('[CreateGame] Global event broadcast completed')
   } catch (kvError) {
     // This catch block is specifically for errors during KV operations
     console.error("Vercel KV Action: Error during KV operations in createAndNavigateToGame:", kvError)
     // Provide a more specific error message if possible, or re-throw a custom one
     throw new Error("Failed to save game data. Please try again.")
   }
+
+  // *** BROADCAST GLOBAL EVENT: GAME CREATED ***
+  await broadcastGlobalEvent({
+    type: 'game_activity',
+    data: {
+      gameId,
+      userId: null, // You can enhance this to include the creator's user/session ID if available
+      action: 'created'
+    }
+  })
 
   // If KV operations were successful, proceed with revalidation and redirect.
   // These are outside the primary try...catch for KV errors to let NEXT_REDIRECT propagate.

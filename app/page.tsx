@@ -12,7 +12,8 @@ import Auth from "@/components/auth"
 import { useState, useEffect, useCallback } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { isConnected, getLocalStorage } from "@stacks/connect"
-import { ListChecks, Loader2, Users, Crown, CircleUser } from "lucide-react" // Added CircleUser
+import { ListChecks, Loader2, Users, Crown, CircleUser, User, Plus } from "lucide-react" // Added User, Plus
+import { useGlobalEvents } from "@/components/global-events-provider"
 
 // The GameData type should already include playerWhiteId and playerBlackId from lib/chess-data.types.ts
 
@@ -30,14 +31,27 @@ async function fetchGamesListClientSide(): Promise<GameData[]> {
   }
 }
 
+// Helper to check if it's the user's turn
+function isUsersTurn(game: GameData, stxAddress: string | null): boolean {
+  if (!stxAddress || !game.currentFen) return false;
+  // FEN format: <pieces> <turn> ...
+  const fenParts = game.currentFen.split(' ');
+  const fenTurn = fenParts[1]; // 'w' or 'b'
+  let userColor: 'w' | 'b' | null = null;
+  if (game.playerWhiteAddress === stxAddress) userColor = 'w';
+  if (game.playerBlackAddress === stxAddress) userColor = 'b';
+  return userColor === fenTurn;
+}
+
 export default function HomePage() {
   const [stxAddress, setStxAddress] = useState<string | null>(null)
   const [games, setGames] = useState<GameData[]>([])
   const [isLoadingGames, setIsLoadingGames] = useState(true)
   const { toast } = useToast()
+  const { connectionState, connect, disconnect, isConnected } = useGlobalEvents()
 
   const getStxAddressFromStorage = useCallback(() => {
-    if (!isConnected()) return null
+    if (!isConnected) return null
     const storage = getLocalStorage()
     const stxAddresses = storage?.addresses?.stx
     if (stxAddresses && stxAddresses.length > 0 && stxAddresses[0].address) {
@@ -49,6 +63,21 @@ export default function HomePage() {
   useEffect(() => {
     setStxAddress(getStxAddressFromStorage())
   }, [getStxAddressFromStorage])
+
+  // Sectioned filtering
+  const yourGames = games.filter(
+    (game) => stxAddress && (game.playerWhiteAddress === stxAddress || game.playerBlackAddress === stxAddress)
+  )
+  const availableGames = games.filter(
+    (game) =>
+      game.status === 'pending' &&
+      (!game.playerWhiteAddress || !game.playerBlackAddress) &&
+      !(stxAddress && (game.playerWhiteAddress === stxAddress || game.playerBlackAddress === stxAddress))
+  )
+  const otherGames = games.filter(
+    (game) =>
+      !yourGames.includes(game) && !availableGames.includes(game)
+  )
 
   const loadGames = useCallback(async () => {
     setIsLoadingGames(true)
@@ -102,6 +131,10 @@ export default function HomePage() {
     return "Open Slot"
   }
 
+  // For 'Your Games', sort so games where it's your turn are first, both sorted by most recent
+  const yourTurnGames = yourGames.filter((game) => isUsersTurn(game, stxAddress)).sort((a, b) => b.updatedAt - a.updatedAt)
+  const notYourTurnGames = yourGames.filter((game) => !isUsersTurn(game, stxAddress)).sort((a, b) => b.updatedAt - a.updatedAt)
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50">
       {/* Header / Navigation */}
@@ -148,107 +181,217 @@ export default function HomePage() {
 
         {/* Games List Section */}
         <section>
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-3xl font-semibold tracking-tight font-crimson">Available Games</h3>
-            <Button variant="secondary" onClick={loadGames} disabled={isLoadingGames}>
-              {isLoadingGames ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <ListChecks className="mr-2 h-4 w-4" />
-              )}
-              Refresh List
-            </Button>
-          </div>
-
-          {isLoadingGames && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => (
-                <Card key={i} className="bg-slate-800/70 border-slate-700 shadow-md animate-pulse">
-                  <CardHeader className="p-3">
-                    <div className="h-5 bg-slate-700 rounded w-3/4 mb-1"></div>
-                    <div className="h-4 bg-slate-700 rounded w-1/3"></div>
-                  </CardHeader>
-                  <CardContent className="p-3 pt-0 space-y-1.5">
-                    <div className="h-3.5 bg-slate-700 rounded w-full"></div>
-                    <div className="h-3.5 bg-slate-700 rounded w-full"></div>
-                  </CardContent>
-                  <CardFooter className="p-3 pt-1 flex flex-col items-stretch space-y-1.5">
-                    <div className="h-8 bg-slate-700 rounded w-full"></div>
-                    <div className="h-3 bg-slate-700 rounded w-1/2 self-center"></div>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {!isLoadingGames && games.length === 0 && (
+          {!isLoadingGames && yourGames.length === 0 && availableGames.length === 0 && otherGames.length === 0 && (
             <Card className="bg-slate-800/70 border-slate-700 shadow-lg text-center py-12">
               <CardContent>
                 <Users className="mx-auto h-12 w-12 text-slate-500 mb-4" />
-                <p className="text-xl font-medium text-slate-300 font-crimson">No Active Games</p>
-                <p className="text-slate-400">Be the first to start a new challenge!</p>
+                <p className="text-xl font-medium text-slate-300 font-crimson">No Games Found</p>
+                <p className="text-slate-400">Try creating or joining a game!</p>
               </CardContent>
             </Card>
           )}
 
-          {!isLoadingGames && games.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {games.map((game) => (
-                <Card
-                  key={game.id}
-                  className="bg-slate-800/70 border-slate-700 shadow-md hover:border-sky-500/70 transition-all duration-200 flex flex-col"
-                >
-                  <CardHeader className="p-3">
-                    <div className="flex justify-between items-start gap-2">
-                      <CardTitle className="text-xs font-mono text-sky-400 leading-tight">
-                        {game.id.substring(0, 8)}
-                      </CardTitle>
-                      <Badge
-                        variant={getStatusBadgeVariant(game.status)}
-                        className="shrink-0"
-                      >
-                        {game.status.replace(/_/g, " ")}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-3 pt-0 space-y-1.5 text-xs flex-grow">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center text-slate-400">
-                        <CircleUser className="w-3 h-3 mr-1 text-slate-900 bg-white rounded-full p-0.5" />
-                        White:
-                      </span>
-                      <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
-                        {getPlayerDisplay(game.playerWhiteAddress, game.playerWhiteId)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center text-slate-400">
-                        <CircleUser className="w-3 h-3 mr-1 text-white bg-slate-900 rounded-full p-0.5" />
-                        Black:
-                      </span>
-                      <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
-                        {getPlayerDisplay(game.playerBlackAddress, game.playerBlackId)}
-                      </span>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="p-3 pt-2 flex flex-col items-stretch space-y-1.5">
-                    <Button asChild size="sm" className="w-full">
-                      <Link href={`/play/${game.id}`}>
-                        {game.status === "pending" &&
-                          (!game.playerWhiteId ||
-                            !game.playerBlackId ||
-                            (stxAddress &&
-                              (game.playerWhiteAddress === stxAddress || game.playerBlackAddress === stxAddress)))
-                          ? "Join Game"
-                          : "View Game"}
-                      </Link>
-                    </Button>
-                    <div className="text-center text-slate-500 text-[10px] pt-0.5">
-                      <RelativeTimeDisplay dateString={new Date(game.updatedAt).toISOString()} />
-                    </div>
-                  </CardFooter>
-                </Card>
-              ))}
+          {/* Section: Your Games */}
+          {!isLoadingGames && yourGames.length > 0 && (
+            <div className="mb-10">
+              <h4 className="text-xl font-semibold mb-3 font-crimson">Your Games</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {[...yourTurnGames, ...notYourTurnGames].map((game) => {
+                  const yourTurn = isUsersTurn(game, stxAddress);
+                  return (
+                    <Card
+                      key={game.id}
+                      className="bg-slate-800/70 border-slate-700 shadow-md hover:border-sky-500/70 transition-all duration-200 flex flex-col"
+                    >
+                      <CardHeader className="p-3">
+                        <div className="flex justify-between items-start gap-2">
+                          {yourTurn && (
+                            <span className="flex items-center gap-1 text-green-400 font-semibold text-xs">
+                              <span className="inline-block w-2 h-2 rounded-full bg-green-400" />
+                              Your move
+                            </span>
+                          )}
+                          <CardTitle className="text-xs font-mono text-sky-400 leading-tight flex items-center gap-2">
+                            {game.id.substring(0, 8)}
+                          </CardTitle>
+                          <Badge
+                            variant={getStatusBadgeVariant(game.status)}
+                            className="shrink-0"
+                          >
+                            {game.status.replace(/_/g, " ")}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-3 pt-0 space-y-1.5 text-xs flex-grow">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center text-slate-400">
+                            <CircleUser className="w-3 h-3 mr-1 text-slate-900 bg-white rounded-full p-0.5" />
+                            White:
+                          </span>
+                          <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
+                            {getPlayerDisplay(game.playerWhiteAddress, game.playerWhiteId)}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center text-slate-400">
+                            <CircleUser className="w-3 h-3 mr-1 text-white bg-slate-900 rounded-full p-0.5" />
+                            Black:
+                          </span>
+                          <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
+                            {getPlayerDisplay(game.playerBlackAddress, game.playerBlackId)}
+                          </span>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="p-3 pt-2 flex flex-col items-stretch space-y-1.5">
+                        <Button asChild size="sm" className="w-full">
+                          <Link href={`/play/${game.id}`}>
+                            {game.status === "pending" &&
+                              (!game.playerWhiteId ||
+                                !game.playerBlackId ||
+                                (stxAddress &&
+                                  (game.playerWhiteAddress === stxAddress || game.playerBlackAddress === stxAddress)))
+                              ? "Join Game"
+                              : "View Game"}
+                          </Link>
+                        </Button>
+                        <div className="text-center text-slate-500 text-[10px] pt-0.5">
+                          <RelativeTimeDisplay dateString={new Date(game.updatedAt).toISOString()} />
+                        </div>
+                      </CardFooter>
+                    </Card>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Section: Available Games */}
+          {!isLoadingGames && availableGames.length > 0 && (
+            <div className="mb-10">
+              <h4 className="text-xl font-semibold mb-3 font-crimson">Available Games</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {availableGames.map((game) => (
+                  <Card
+                    key={game.id}
+                    className="bg-slate-800/70 border-slate-700 shadow-md hover:border-sky-500/70 transition-all duration-200 flex flex-col"
+                  >
+                    <CardHeader className="p-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <CardTitle className="text-xs font-mono text-sky-400 leading-tight">
+                          {game.id.substring(0, 8)}
+                        </CardTitle>
+                        <Badge
+                          variant={getStatusBadgeVariant(game.status)}
+                          className="shrink-0"
+                        >
+                          {game.status.replace(/_/g, " ")}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0 space-y-1.5 text-xs flex-grow">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center text-slate-400">
+                          <CircleUser className="w-3 h-3 mr-1 text-slate-900 bg-white rounded-full p-0.5" />
+                          White:
+                        </span>
+                        <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
+                          {getPlayerDisplay(game.playerWhiteAddress, game.playerWhiteId)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center text-slate-400">
+                          <CircleUser className="w-3 h-3 mr-1 text-white bg-slate-900 rounded-full p-0.5" />
+                          Black:
+                        </span>
+                        <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
+                          {getPlayerDisplay(game.playerBlackAddress, game.playerBlackId)}
+                        </span>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="p-3 pt-2 flex flex-col items-stretch space-y-1.5">
+                      <Button asChild size="sm" className="w-full">
+                        <Link href={`/play/${game.id}`}>
+                          {game.status === "pending" &&
+                            (!game.playerWhiteId ||
+                              !game.playerBlackId ||
+                              (stxAddress &&
+                                (game.playerWhiteAddress === stxAddress || game.playerBlackAddress === stxAddress)))
+                            ? "Join Game"
+                            : "View Game"}
+                        </Link>
+                      </Button>
+                      <div className="text-center text-slate-500 text-[10px] pt-0.5">
+                        <RelativeTimeDisplay dateString={new Date(game.updatedAt).toISOString()} />
+                      </div>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section: Other Games */}
+          {!isLoadingGames && otherGames.length > 0 && (
+            <div className="mb-10">
+              <h4 className="text-xl font-semibold mb-3 font-crimson">Other Games</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {otherGames.map((game) => (
+                  <Card
+                    key={game.id}
+                    className="bg-slate-800/70 border-slate-700 shadow-md hover:border-sky-500/70 transition-all duration-200 flex flex-col"
+                  >
+                    <CardHeader className="p-3">
+                      <div className="flex justify-between items-start gap-2">
+                        <CardTitle className="text-xs font-mono text-sky-400 leading-tight">
+                          {game.id.substring(0, 8)}
+                        </CardTitle>
+                        <Badge
+                          variant={getStatusBadgeVariant(game.status)}
+                          className="shrink-0"
+                        >
+                          {game.status.replace(/_/g, " ")}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0 space-y-1.5 text-xs flex-grow">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center text-slate-400">
+                          <CircleUser className="w-3 h-3 mr-1 text-slate-900 bg-white rounded-full p-0.5" />
+                          White:
+                        </span>
+                        <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
+                          {getPlayerDisplay(game.playerWhiteAddress, game.playerWhiteId)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center text-slate-400">
+                          <CircleUser className="w-3 h-3 mr-1 text-white bg-slate-900 rounded-full p-0.5" />
+                          Black:
+                        </span>
+                        <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
+                          {getPlayerDisplay(game.playerBlackAddress, game.playerBlackId)}
+                        </span>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="p-3 pt-2 flex flex-col items-stretch space-y-1.5">
+                      <Button asChild size="sm" className="w-full">
+                        <Link href={`/play/${game.id}`}>
+                          {game.status === "pending" &&
+                            (!game.playerWhiteId ||
+                              !game.playerBlackId ||
+                              (stxAddress &&
+                                (game.playerWhiteAddress === stxAddress || game.playerBlackAddress === stxAddress)))
+                            ? "Join Game"
+                            : "View Game"}
+                        </Link>
+                      </Button>
+                      <div className="text-center text-slate-500 text-[10px] pt-0.5">
+                        <RelativeTimeDisplay dateString={new Date(game.updatedAt).toISOString()} />
+                      </div>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
             </div>
           )}
         </section>

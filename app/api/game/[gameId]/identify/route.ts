@@ -6,8 +6,6 @@ import { type NextRequest, NextResponse } from "next/server"
 import { cleanKVData, mapIdentityToColor, identityToPieceSymbol } from "@/lib/chess-logic/mappers"
 import { getOrCreateSessionId } from "@/lib/session"
 import { getOrCreateUser } from "@/lib/user"
-import { GameEventBroadcaster } from "@/lib/game-events"
-import { GlobalEventBroadcaster } from "@/lib/global-events"
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ gameId: string }> }) {
   const { gameId } = await params
@@ -85,45 +83,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       // IMPORTANT: Manually merge the updates into the local gameData object.
       // This ensures the rest of the function uses the absolute latest data without another DB read.
       Object.assign(gameData, updatePayload)
-
-      // Broadcast player join events if a new player was assigned
-      if (updatePayload.playerWhiteId && updatePayload.playerWhiteId === userId) {
-        GameEventBroadcaster.broadcast(gameId, {
-          type: 'player_joined',
-          data: {
-            playerColor: 'w',
-            playerId: userId,
-            playerAddress: userStxAddress || undefined
-          }
-        })
-
-        // Broadcast to global events
-        GlobalEventBroadcaster.getInstance().broadcastGameActivity(
-          gameId,
-          'joined',
-          userId,
-          userStxAddress || undefined,
-          'w'
-        )
-      } else if (updatePayload.playerBlackId && updatePayload.playerBlackId === userId) {
-        GameEventBroadcaster.broadcast(gameId, {
-          type: 'player_joined',
-          data: {
-            playerColor: 'b',
-            playerId: userId,
-            playerAddress: userStxAddress || undefined
-          }
-        })
-
-        // Broadcast to global events
-        GlobalEventBroadcaster.getInstance().broadcastGameActivity(
-          gameId,
-          'joined',
-          userId,
-          userStxAddress || undefined,
-          'b'
-        )
-      }
     }
 
     const gameLogic = new ChessJsAdapter(gameData.currentFen)
