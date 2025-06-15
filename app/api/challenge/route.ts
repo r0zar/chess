@@ -1,13 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GlobalEventBroadcaster } from '@/lib/global-events'
-import { KVConnectionManager } from '@/lib/kv-connection-manager'
 import { getOrCreateSessionId } from '@/lib/session'
+
+// Helper to broadcast global events via PartyKit
+async function broadcastGlobalEvent(event: any) {
+    try {
+        const isProduction = process.env.NODE_ENV === 'production'
+        const partyKitHost = isProduction
+            ? process.env.PARTYKIT_HOST || 'chess-game.r0zar.partykit.dev'
+            : 'localhost:1999'
+        const protocol = isProduction ? 'https' : 'http'
+        const url = `${protocol}://${partyKitHost}/party/global-events`
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(event)
+        })
+    } catch (err) {
+        console.error('[PartyKit] Failed to broadcast global event:', err)
+    }
+}
 
 export async function POST(request: NextRequest) {
     try {
         const userId = await getOrCreateSessionId()
         const body = await request.json()
-
         const { message } = body
 
         if (!message || typeof message !== 'string' || message.trim().length === 0) {
@@ -29,39 +45,19 @@ export async function POST(request: NextRequest) {
 
         console.log(`[Challenge API] Broadcasting challenge request from user ${userId}: "${message}"`)
 
-        // Debug: Check current connection count
-        const broadcaster = GlobalEventBroadcaster.getInstance()
-        console.log(`[Challenge API] *** Direct connection count:`, broadcaster.getConnectionCount())
-
-        // Check KV connection count separately
-        let kvConnectionCount = 0
-        try {
-            const kvConnections = await KVConnectionManager.getActiveConnections()
-            kvConnectionCount = kvConnections.length
-            console.log(`[Challenge API] *** KV connection count:`, kvConnectionCount)
-        } catch (error) {
-            console.log(`[Challenge API] *** KV not available (development):`, (error as Error).message)
-        }
-
-        console.log(`[Challenge API] *** Broadcaster instance ID:`, broadcaster.constructor.name)
-
-        // Broadcast the challenge request
-        await broadcaster.broadcastChallengeRequest(
-            userId,
-            userAddress,
-            message.trim()
-        )
-
-        return NextResponse.json({
-            success: true,
-            message: 'Challenge request sent!'
+        // Broadcast the challenge request event via PartyKit
+        await broadcastGlobalEvent({
+            type: 'challenge_request',
+            data: {
+                userId,
+                userAddress,
+                message
+            }
         })
 
+        return NextResponse.json({ success: true })
     } catch (error) {
-        console.error('[Challenge API] Error broadcasting challenge request:', error)
-        return NextResponse.json(
-            { success: false, message: 'Internal server error' },
-            { status: 500 }
-        )
+        console.error('[Challenge API] Error:', error)
+        return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 })
     }
 } 
