@@ -3,11 +3,12 @@
 import type React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ListChecks, LayoutDashboard } from "lucide-react"
+import { ListChecks, LayoutDashboard, Zap } from "lucide-react"
 
 const adminMenuItems = [
   { title: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { title: "Games", href: "/admin/games", icon: ListChecks },
+  { title: "Rewards", href: "/admin/rewards", icon: Zap },
 ]
 
 export default function AdminLayout({
