@@ -27,7 +27,7 @@ export default function LoadingGame() {
             </div>
           </div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-amber-100 to-white bg-clip-text text-transparent">
-            Stacks Chess
+            Chess
           </h1>
           <p className="text-neutral-400 text-lg">Loading your game...</p>
         </div>

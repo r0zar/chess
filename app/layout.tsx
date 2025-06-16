@@ -30,20 +30,20 @@ export const metadata: Metadata = {
         url: '/image.png',
         width: 1200,
         height: 630,
-        alt: 'Stacks Chess - Strategic Chess Mastery',
+        alt: 'Chess - Strategic Chess Mastery',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Stacks Chess - Strategic Chess Mastery',
+    title: 'Chess - Strategic Chess Mastery',
     description: 'Engage in classic chess battles. Every move earns EXP, every victory builds your legacy.',
     images: [
       {
         url: '/image.png',
         width: 1200,
         height: 630,
-        alt: 'Stacks Chess - Strategic Chess Mastery',
+        alt: 'Chess - Strategic Chess Mastery',
       },
     ],
   },

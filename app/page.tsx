@@ -113,7 +113,7 @@ export default function HomePage() {
                 <Crown className="h-7 w-7 text-amber-400" />
                 <div className="absolute -inset-1 bg-amber-400/20 rounded-full blur-sm animate-pulse" />
               </div>
-              <span className="text-xl font-semibold text-white tracking-tight">Stacks Chess</span>
+              <span className="text-xl font-semibold text-white tracking-tight">Chess</span>
             </Link>
             <div className="flex items-center space-x-6">
               <Link
@@ -523,7 +523,7 @@ export default function HomePage() {
       <footer className="border-t border-neutral-800/50 bg-neutral-950/50 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 py-8 text-center">
           <p className="text-sm text-neutral-500">
-            © {new Date().getFullYear()} Stacks Chess. Engineered for excellence.
+            © {new Date().getFullYear()} Charisma. Engineered for excellence.
           </p>
         </div>
       </footer>
