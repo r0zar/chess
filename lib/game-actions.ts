@@ -1,0 +1,279 @@
+"use server"
+
+import { kv } from "@/lib/kv"
+import type { GameData } from "@/lib/chess-data.types"
+import { mapIdentityToColor } from "@/lib/chess-logic/mappers"
+import type { PlayerColor, FenString, Square, Move, PieceSymbol as LocalPieceSymbol } from "@/lib/chess-logic/types"
+import { ChessJsAdapter } from "@/lib/chess-logic/game"
+import { cleanKVData, mapColorToIdentity, pieceSymbolToIdentity } from "@/lib/chess-logic/mappers"
+import { broadcastPartyKitEvent } from "@/lib/partykit"
+import type { GameStatus, MoveData } from "@/lib/chess-data.types"
+import { getOrCreateUser, getUserById } from "@/lib/user"
+import { identityToPieceSymbol } from "@/lib/chess-logic/mappers"
+import type { PlayerColorIdentity, PieceTypeIdentity } from "@/lib/chess-data.types"
+import type { PieceSymbol } from "@/lib/chess-logic/types"
+
+export async function makeServerMoveApi({ gameId, from, to, promotion, userId }: {
+    gameId: string
+    from: Square
+    to: Square
+    promotion?: LocalPieceSymbol
+    userId: string
+}): Promise<{
+    success: boolean
+    newFen?: FenString
+    message?: string
+    gameStatus?: string
+    winner?: PlayerColor
+    move?: Move
+}> {
+    // Fetch game record
+    const gameRecord = await kv.hgetall(`game:${gameId}`) as GameData | null
+    if (!gameRecord || !gameRecord.currentFen) {
+        return { success: false, message: "Game not found or data incomplete." }
+    }
+
+    const game = new ChessJsAdapter(gameRecord.currentFen)
+    const currentTurnColor = game.getTurn()
+    const expectedUserId = currentTurnColor === "w" ? gameRecord.playerWhiteId : gameRecord.playerBlackId
+    if (expectedUserId !== userId) {
+        return { success: false, message: "Not your turn or you are not a player in this game." }
+    }
+
+    const nonActiveStatuses: GameStatus[] = [
+        "checkmate_white_wins",
+        "checkmate_black_wins",
+        "stalemate",
+        "draw_repetition",
+        "draw_50_moves",
+        "draw_insufficient_material",
+        "aborted",
+        "resigned_black",
+        "resigned_white",
+    ]
+    if (nonActiveStatuses.includes(gameRecord.status)) {
+        return { success: false, message: `Game is not active (status: ${gameRecord.status}).` }
+    }
+
+    const fenBeforeMove = gameRecord.currentFen
+    const moveResult = game.makeMove({ from, to, promotion })
+    if (!moveResult) {
+        return { success: false, message: "Invalid move according to game rules." }
+    }
+
+    const fenAfterMove = game.getFen()
+    const newStatusFromEngine = game.getStatus()
+    const gameWinnerFromEngine = game.getWinner()
+
+    let newGameStatus: GameStatus = "ongoing"
+    if (gameRecord.status === "pending" && gameRecord.playerWhiteId && gameRecord.playerBlackId) {
+        newGameStatus = "ongoing"
+    }
+    if (newStatusFromEngine === "checkmate") {
+        newGameStatus = gameWinnerFromEngine === "w" ? "checkmate_white_wins" : "checkmate_black_wins"
+    } else if (newStatusFromEngine === "stalemate") {
+        newGameStatus = "stalemate"
+    } else if (newStatusFromEngine.startsWith("draw_")) {
+        newGameStatus = newStatusFromEngine as GameStatus
+    }
+
+    const now = Date.now()
+    const updatedGameFields: Partial<GameData> = {
+        currentFen: fenAfterMove,
+        status: newGameStatus,
+        winner: mapColorToIdentity(gameWinnerFromEngine),
+        updatedAt: now,
+    }
+    await kv.hset(`game:${gameId}`, cleanKVData(updatedGameFields))
+    await kv.zadd("games_by_update_time", { score: now, member: gameId })
+
+    const movesListKey = `moves:${gameId}`
+    const currentMoveCount = await kv.llen(movesListKey)
+    const moveNumber = currentMoveCount + 1
+
+    const moveData: MoveData = {
+        gameId,
+        moveNumber,
+        playerId: userId,
+        playerColor: mapColorToIdentity(moveResult.color as PlayerColor)!,
+        piece: pieceSymbolToIdentity(moveResult.piece)!,
+        fromSquare: moveResult.from,
+        toSquare: moveResult.to,
+        promotion: pieceSymbolToIdentity(moveResult.promotion),
+        isCapture: moveResult.flags.includes("c"),
+        capturedPiece: pieceSymbolToIdentity(moveResult.captured),
+        moveFlags: moveResult.flags,
+        isCheck: game.isCheck(),
+        isCheckmate: newGameStatus.includes("checkmate"),
+        isStalemate: newGameStatus === "stalemate",
+        san: moveResult.san,
+        fenBeforeMove,
+        fenAfterMove,
+        timestamp: now,
+    }
+    await kv.rpush(movesListKey, JSON.stringify(moveData))
+
+    // Broadcast move event to all connected players
+    await broadcastPartyKitEvent({
+        event: {
+            type: 'move',
+            data: {
+                move: moveResult,
+                gameState: {
+                    fen: fenAfterMove,
+                    status: newGameStatus,
+                    winner: gameWinnerFromEngine,
+                    turn: game.getTurn()
+                },
+                playerId: userId
+            }
+        },
+        gameId
+    })
+
+    // Broadcast game end event if the game is over
+    if (newGameStatus !== "ongoing" && newGameStatus !== "pending") {
+        let endReason = "Game ended"
+        if (newGameStatus.includes("checkmate")) {
+            endReason = `Checkmate! ${gameWinnerFromEngine === "w" ? "White" : "Black"} wins`
+        } else if (newGameStatus === "stalemate") {
+            endReason = "Stalemate - Draw"
+        } else if (newGameStatus.startsWith("draw_")) {
+            endReason = "Draw"
+        }
+        await broadcastPartyKitEvent({
+            event: {
+                type: 'game_ended',
+                data: {
+                    winner: gameWinnerFromEngine,
+                    reason: endReason,
+                    status: newGameStatus
+                }
+            }
+        })
+    }
+
+    return {
+        success: true,
+        newFen: fenAfterMove,
+        move: moveResult,
+        gameStatus: newGameStatus,
+        winner: gameWinnerFromEngine,
+    }
+}
+
+// --- JOIN GAME: Assign user to a color if possible ---
+export async function joinGame({ gameId, userId }: { gameId: string, userId: string }): Promise<{ assignedColor?: PlayerColor, message?: string }> {
+    const gameData = await kv.hgetall(`game:${gameId}`) as GameData | null
+    if (!gameData || !gameData.currentFen) {
+        return { message: "Game not found or data incomplete." }
+    }
+    let assignedColor: PlayerColor | undefined = undefined
+    const updatePayload: Partial<GameData> = {}
+    if (gameData.playerWhiteId === userId) {
+        assignedColor = "w"
+    } else if (gameData.playerBlackId === userId) {
+        assignedColor = "b"
+    } else if (!gameData.playerWhiteId) {
+        updatePayload.playerWhiteId = userId
+        assignedColor = "w"
+    } else if (!gameData.playerBlackId) {
+        updatePayload.playerBlackId = userId
+        assignedColor = "b"
+    } else {
+        return { message: "Both player slots are filled. You are a spectator." }
+    }
+    if (Object.keys(updatePayload).length > 0) {
+        updatePayload.updatedAt = Date.now()
+        await kv.hset(`game:${gameId}`, cleanKVData(updatePayload))
+        await kv.zadd("games_by_update_time", { score: updatePayload.updatedAt, member: gameId })
+    }
+    return { assignedColor }
+}
+
+// --- GET GAME STATE: Pure read, never mutates assignment ---
+export async function getGameState({ gameId, userId }: { gameId: string, userId: string }): Promise<{
+    gameId: string
+    fen: string
+    clientPlayerColor?: PlayerColor
+    assignedWhiteId?: string | null
+    assignedBlackId?: string | null
+    currentTurn: PlayerColor
+    gameStatus: string
+    winner?: PlayerColor
+    moveHistory: Move[]
+} | { message: string, error?: string, errorName?: string }> {
+    try {
+        const gameData = await kv.hgetall(`game:${gameId}`) as GameData | null
+        if (!gameData || !gameData.currentFen) {
+            return { message: "Game not found or data incomplete." }
+        }
+        let clientPlayerColor: PlayerColor | undefined = undefined
+        if (gameData.playerWhiteId === userId) clientPlayerColor = "w"
+        else if (gameData.playerBlackId === userId) clientPlayerColor = "b"
+        // --- Move history logic (unchanged) ---
+        const gameLogic = new ChessJsAdapter(gameData.currentFen)
+        const movesListKey = `moves:${gameId}`
+        const rawMovesData = await kv.lrange<string | MoveData>(movesListKey, 0, -1)
+        const clientMoveHistory: Move[] = rawMovesData
+            .map((item) => {
+                let dbMove: MoveData
+                if (typeof item === "string") {
+                    try { dbMove = JSON.parse(item) } catch { return null }
+                } else if (typeof item === "object" && item !== null) {
+                    dbMove = item as MoveData
+                } else { return null }
+                if (!dbMove || typeof dbMove.fromSquare !== "string" || typeof dbMove.toSquare !== "string" || typeof dbMove.playerColor !== "string" || dbMove.playerColor.trim() === "" || typeof dbMove.piece !== "string" || dbMove.piece.trim() === "") { return null }
+                let moveColor: PlayerColor | undefined = mapIdentityToColor(dbMove.playerColor as PlayerColorIdentity)
+                if (!moveColor && (dbMove.playerColor.toLowerCase() === "w" || dbMove.playerColor.toLowerCase() === "b")) { moveColor = dbMove.playerColor.toLowerCase() as PlayerColor }
+                let movePiece: PieceSymbol | undefined = identityToPieceSymbol(dbMove.piece as PieceTypeIdentity)
+                if (!movePiece && dbMove.piece.length === 1) {
+                    const potentialPieceSymbol = dbMove.piece.toLowerCase() as PieceSymbol
+                    if (["p", "n", "b", "r", "q", "k"].includes(potentialPieceSymbol)) { movePiece = potentialPieceSymbol }
+                }
+                if (!moveColor || !movePiece) { return null }
+                const flags = dbMove.moveFlags || (() => { let f = ""; if (dbMove.isCapture) f += "c"; if (dbMove.promotion) f += "p"; if (dbMove.san) { if (dbMove.san.includes("x") && !f.includes("c")) f += "c"; if (dbMove.san.includes("=") && !f.includes("p")) f += "p"; if (dbMove.san === "O-O") return "k"; if (dbMove.san === "O-O-O") return "q"; } return f || "n" })()
+                return { from: dbMove.fromSquare as Square, to: dbMove.toSquare as Square, color: moveColor, piece: movePiece, promotion: dbMove.promotion ? identityToPieceSymbol(dbMove.promotion as PieceTypeIdentity) : undefined, captured: dbMove.capturedPiece ? identityToPieceSymbol(dbMove.capturedPiece) : undefined, san: dbMove.san || "N/A", flags: flags }
+            })
+            .filter((move) => move !== null) as Move[]
+        return {
+            gameId: gameData.id,
+            fen: gameData.currentFen,
+            clientPlayerColor,
+            assignedWhiteId: gameData.playerWhiteId,
+            assignedBlackId: gameData.playerBlackId,
+            currentTurn: gameLogic.getTurn(),
+            gameStatus: gameData.status,
+            winner: mapIdentityToColor(gameData.winner),
+            moveHistory: clientMoveHistory,
+        }
+    } catch (error: unknown) {
+        let errorMessage = "An unknown error occurred."
+        let errorName = "UnknownError"
+        if (error instanceof Error) {
+            errorMessage = error.message || "Error object did not contain a message."
+            errorName = error.name || "Error"
+        } else if (typeof error === "string") {
+            errorMessage = error
+        } else if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+            errorMessage = error.message
+            errorName = "name" in error && typeof error.name === "string" ? error.name : "ObjectError"
+        } else {
+            try { errorMessage = JSON.stringify(error) } catch { errorMessage = "Failed to stringify error object." }
+        }
+        if (errorMessage === "[object Object]") { errorMessage = "An unspecified object error occurred." }
+        return { message: "Internal server error during game state fetch.", error: errorMessage, errorName }
+    }
+}
+
+// Utility to fetch addresses for both players in a game
+export async function getUserAddressesForGame(gameData: GameData): Promise<{ whiteAddress: string | null, blackAddress: string | null }> {
+    const [whiteUser, blackUser] = await Promise.all([
+        gameData.playerWhiteId ? getUserById(gameData.playerWhiteId) : Promise.resolve(null),
+        gameData.playerBlackId ? getUserById(gameData.playerBlackId) : Promise.resolve(null),
+    ])
+    return {
+        whiteAddress: whiteUser?.stxAddress || null,
+        blackAddress: blackUser?.stxAddress || null,
+    }
+} 

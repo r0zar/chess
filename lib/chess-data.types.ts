@@ -34,8 +34,6 @@ export interface GameData {
   // Foreign keys to the UserData model
   playerWhiteId?: string | null
   playerBlackId?: string | null
-  playerWhiteAddress?: string | null
-  playerBlackAddress?: string | null
   currentFen: string
   initialFen: string
   status: GameStatus

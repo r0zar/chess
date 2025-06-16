@@ -32,6 +32,15 @@ export default function AdminLayout({
             <span className="text-slate-100 font-semibold text-sm">{item.title}</span>
           </Link>
         ))}
+        <Link
+          href="/admin/sessions"
+          className={`flex items-center gap-2 rounded-md px-3 py-2 transition-colors font-medium text-sm
+            ${pathname === "/admin/sessions" ? "text-sidebar-accent-foreground" : "hover:text-sidebar-accent-foreground"}
+          `}
+        >
+          <LayoutDashboard className="w-5 h-5 text-slate-100" />
+          <span className="text-slate-100 font-semibold text-sm">Sessions</span>
+        </Link>
       </nav>
       <main className="p-4 md:p-8 bg-slate-900/50 overflow-auto text-slate-50 min-h-[calc(100vh-56px)]">
         {children}

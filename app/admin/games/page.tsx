@@ -66,54 +66,75 @@ export default async function AdminGamesPage({ searchParams }: { searchParams?: 
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow className="border-slate-700 hover:bg-slate-800/50">
-                <TableHead className="text-slate-300">Game ID</TableHead>
-                <TableHead className="text-slate-300">Status</TableHead>
-                <TableHead className="text-slate-300">Winner</TableHead>
-                <TableHead className="text-slate-300">White Player</TableHead>
-                <TableHead className="text-slate-300">Black Player</TableHead>
-                <TableHead className="text-slate-300">Last Updated</TableHead>
-                <TableHead className="text-slate-300">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {games.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-slate-400">
-                    No games found.
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table className="min-w-[900px]">
+              <TableHeader>
+                <TableRow className="border-slate-700 hover:bg-slate-800/50">
+                  <TableHead className="text-slate-300 min-w-[120px]">Game ID</TableHead>
+                  <TableHead className="text-slate-300 min-w-[90px]">Status</TableHead>
+                  <TableHead className="text-slate-300 min-w-[80px]">Winner</TableHead>
+                  <TableHead className="text-slate-300 min-w-[180px]">White Player</TableHead>
+                  <TableHead className="text-slate-300 min-w-[180px]">Black Player</TableHead>
+                  <TableHead className="text-slate-300 min-w-[120px]">Last Updated</TableHead>
+                  <TableHead className="text-slate-300 min-w-[80px]">Actions</TableHead>
                 </TableRow>
-              ) : (
-                games.map((game) => (
-                  <TableRow key={game.id} className="border-slate-700 hover:bg-slate-800/30">
-                    <TableCell className="font-medium truncate max-w-none text-slate-200">
-                      <Link href={`/admin/games/${game.id}`} className="hover:underline text-sky-400 hover:text-sky-300">
-                        {game.id}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusBadgeVariant(game.status)}>{game.status || "N/A"}</Badge>
-                    </TableCell>
-                    <TableCell className="text-slate-300">{game.winner || "N/A"}</TableCell>
-                    <TableCell className="truncate max-w-[100px] text-slate-300">{game.playerWhiteAddress || "N/A"}</TableCell>
-                    <TableCell className="truncate max-w-[100px] text-slate-300">{game.playerBlackAddress || "N/A"}</TableCell>
-                    <TableCell className="text-slate-300">
-                      <RelativeTimeDisplay dateString={game.updatedAt} />
-                    </TableCell>
-                    <TableCell>
-                      <Button asChild variant="outline" size="sm" className="border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
-                        <Link href={`/admin/games/${game.id}`}>
-                          <Eye className="mr-2 h-4 w-4" /> View
-                        </Link>
-                      </Button>
+              </TableHeader>
+              <TableBody>
+                {games.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-slate-400">
+                      No games found.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  games.map((game) => {
+                    const whiteId = game.playerWhiteId;
+                    const blackId = game.playerBlackId;
+                    return (
+                      <TableRow key={game.id} className="border-slate-700 hover:bg-slate-800/30">
+                        <TableCell className="font-medium text-slate-200" title={game.id}>
+                          <Link href={`/play/${game.id}`} className="hover:underline text-sky-400 hover:text-sky-300">
+                            <span className="block md:hidden lowercase">{game.id.length > 10 ? `${game.id.slice(0, 6)}...${game.id.slice(-4)}` : game.id}</span>
+                            <span className="hidden md:block lowercase">{game.id}</span>
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusBadgeVariant(game.status)}>{game.status || "N/A"}</Badge>
+                        </TableCell>
+                        <TableCell className="text-slate-300">{game.winner || "N/A"}</TableCell>
+                        <TableCell className="text-slate-300">
+                          {whiteId ? (
+                            <Badge variant="secondary" title={whiteId} className="lowercase">
+                              <span className="block md:hidden lowercase">{whiteId.length > 10 ? `${whiteId.slice(0, 6)}...${whiteId.slice(-4)}` : whiteId}</span>
+                              <span className="hidden md:block lowercase">{whiteId}</span>
+                            </Badge>
+                          ) : "N/A"}
+                        </TableCell>
+                        <TableCell className="text-slate-300">
+                          {blackId ? (
+                            <Badge variant="secondary" title={blackId} className="lowercase">
+                              <span className="block md:hidden lowercase">{blackId.length > 10 ? `${blackId.slice(0, 6)}...${blackId.slice(-4)}` : blackId}</span>
+                              <span className="hidden md:block lowercase">{blackId}</span>
+                            </Badge>
+                          ) : "N/A"}
+                        </TableCell>
+                        <TableCell className="text-slate-300">
+                          <RelativeTimeDisplay dateString={game.updatedAt} />
+                        </TableCell>
+                        <TableCell>
+                          <Button asChild variant="outline" size="sm" className="border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                            <Link href={`/play/${game.id}`}>
+                              <Eye className="mr-2 h-4 w-4" /> View
+                            </Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
         <CardFooter className="flex justify-between items-center border-t border-slate-700">
           <p className="text-sm text-slate-400">
@@ -132,5 +153,3 @@ export default async function AdminGamesPage({ searchParams }: { searchParams?: 
     </div>
   )
 }
-
-

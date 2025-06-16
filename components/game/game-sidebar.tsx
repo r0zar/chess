@@ -1,6 +1,8 @@
 "use client"
 import { Badge } from "@/components/ui/badge"
 import type React from "react"
+import { useEffect, useState } from "react"
+import { getUserById } from "@/lib/user"
 
 import type { PlayerColor, Move, PieceSymbol } from "@/lib/chess-logic/types"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -18,6 +20,8 @@ import {
   UserCircle,
   MoveRight,
 } from "lucide-react"
+import { useGameEvents } from "../game-events-provider"
+import { useGlobalEvents } from "@/components/global-events-provider"
 
 const getPieceName = (pieceSymbol: PieceSymbol): string => {
   const names: Record<PieceSymbol, string> = {
@@ -93,41 +97,39 @@ const MoveDetail = ({ move }: { move?: Move }) => {
 }
 
 interface GameSidebarProps {
-  gameId: string
-  gameStatus: string
-  currentTurn?: PlayerColor
-  winner?: PlayerColor
-  whitePlayerDisplay: string
-  blackPlayerDisplay: string
-  moveHistory: Move[]
-  yourRole: string
-  isYourTurn: boolean
-  showDebug: boolean
   onToggleDebug: () => void
   isRefreshing: boolean
-  onRefresh: () => void
   connectionState: 'disconnected' | 'connecting' | 'connected'
 }
 
 export default function GameSidebar({
-  gameId,
-  gameStatus,
-  currentTurn,
-  winner,
-  whitePlayerDisplay,
-  blackPlayerDisplay,
-  moveHistory,
-  yourRole,
-  isYourTurn,
-  showDebug,
   onToggleDebug,
   isRefreshing,
-  onRefresh,
   connectionState,
 }: GameSidebarProps) {
-  console.log(
-    `[GameSidebar ${gameId}] RENDER. Received moveHistory length: ${moveHistory?.length || 0}. First move SAN: ${moveHistory?.[0]?.san}`,
-  )
+
+  const {
+    assignedWhiteId,
+    assignedBlackId,
+    gameStatus,
+    currentTurn,
+    winner,
+    moveHistory,
+    clientPlayerColor,
+  } = useGameEvents()
+  const { userUuid } = useGlobalEvents()
+
+  console.log(`[GameSidebar] assignedWhiteId: ${assignedWhiteId}, assignedBlackId: ${assignedBlackId}`)
+
+  const yourRole = clientPlayerColor ? `Playing as ${clientPlayerColor === "w" ? "White" : "Black"}` : "Spectating"
+  const isYourTurn = gameStatus === "ongoing" && currentTurn === clientPlayerColor && !!clientPlayerColor
+
+  const formatPlayer = (id: string | null | undefined) => {
+    if (id) {
+      return `${id.substring(0, 6)}...${id.substring(id.length - 4)}`
+    }
+    return "Open Slot"
+  }
 
   const getStatusBadgeVariant = (status: string | null): "default" | "secondary" | "outline" | "destructive" => {
     if (!status) return "secondary"
@@ -138,9 +140,11 @@ export default function GameSidebar({
     return "destructive"
   }
 
-  const formatPlayerDisplay = (display: string) => {
-    if (display.startsWith("User ") || display.startsWith("SP") || display.length > 15) {
-      return `${display.substring(0, 10)}...`
+  const formatPlayerDisplay = (display: string | null | undefined) => {
+    if (!display) return "Open Slot"
+    // show first 6 and last 4 characters if longer than 10
+    if (display.length > 10) {
+      return `${display.substring(0, 6)}...${display.substring(display.length - 4)}`
     }
     return display
   }
@@ -157,7 +161,7 @@ export default function GameSidebar({
     for (let i = 0; i < moveHistory.length; i++) {
       const move = moveHistory[i]
       if (!move || typeof move !== "object") {
-        console.warn(`[GameSidebar ${gameId}] Invalid move object at index ${i}:`, move)
+        console.warn(`[GameSidebar ${assignedWhiteId || assignedBlackId}] Invalid move object at index ${i}:`, move)
         continue
       }
       const moveNumber = Math.floor(i / 2) + 1
@@ -172,7 +176,7 @@ export default function GameSidebar({
         } else {
           // This case implies a black move starting a new number, which is unusual unless history is partial.
           console.warn(
-            `[GameSidebar ${gameId}] Mismatched move number for black move at index ${i}. History might be corrupted or incomplete. Creating new entry.`,
+            `[GameSidebar ${assignedWhiteId || assignedBlackId}] Mismatched move number for black move at index ${i}. History might be corrupted or incomplete. Creating new entry.`,
             move,
           )
           groupedMoves.push({ moveNumber, black: move }) // Or handle as an error / placeholder
@@ -180,7 +184,7 @@ export default function GameSidebar({
       }
     }
   } else if (moveHistory) {
-    console.warn(`[GameSidebar ${gameId}] moveHistory is not an array:`, moveHistory)
+    console.warn(`[GameSidebar ${assignedWhiteId || assignedBlackId}] moveHistory is not an array:`, moveHistory)
   }
 
   return (
@@ -200,7 +204,7 @@ export default function GameSidebar({
               </button>
             </div>
             <button
-              onClick={onRefresh}
+              // onClick={onRefresh}
               disabled={isRefreshing}
               className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-slate-700/50 hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Click to refresh game state"
@@ -257,13 +261,13 @@ export default function GameSidebar({
               </h3>
               <div className="space-y-1">
                 <InfoRow label="White">
-                  <span className="font-mono text-xs" title={whitePlayerDisplay}>
-                    {formatPlayerDisplay(whitePlayerDisplay)}
+                  <span className="font-mono text-xs" title={assignedWhiteId || undefined}>
+                    {formatPlayer(assignedWhiteId)}
                   </span>
                 </InfoRow>
                 <InfoRow label="Black">
-                  <span className="font-mono text-xs" title={blackPlayerDisplay}>
-                    {formatPlayerDisplay(blackPlayerDisplay)}
+                  <span className="font-mono text-xs" title={assignedBlackId || undefined}>
+                    {formatPlayer(assignedBlackId)}
                   </span>
                 </InfoRow>
               </div>

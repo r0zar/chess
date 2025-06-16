@@ -2,7 +2,16 @@
 
 import React, { createContext, useContext, type ReactNode, useState, useCallback, useRef, useEffect } from "react"
 import type { GlobalEvent } from '@/types/global-events'
-import PartySocket from 'partysocket'
+import usePartySocket from 'partysocket/react'
+import { getPartyKitHost, GLOBAL_EVENTS_ROOM } from '@/lib/config'
+import { useToast } from '@/hooks/use-toast'
+
+interface ChallengeRequest {
+    userId: string;
+    userAddress?: string;
+    message: string;
+    timestamp: number;
+}
 
 interface GlobalEventsContextValue {
     connectionState: 'disconnected' | 'connecting' | 'connected'
@@ -10,64 +19,95 @@ interface GlobalEventsContextValue {
     isConnected: boolean
     connect: () => void
     disconnect: () => void
+    stxAddress: string | null
+    setStxAddress: (address: string | null) => void
+    userUuid: string
 }
 
 const GlobalEventsContext = createContext<GlobalEventsContextValue | null>(null)
 
 interface GlobalEventsProviderProps {
     children: ReactNode
-    onEvent?: (event: GlobalEvent) => void
 }
 
-export default function GlobalEventsProvider({ children, onEvent }: GlobalEventsProviderProps) {
-    const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected')
+export { GlobalEventsContext }
+export default function GlobalEventsProvider({ children }: GlobalEventsProviderProps) {
+    const [globalConnectionState, setGlobalConnectionState] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected')
     const [connectionStats, setConnectionStats] = useState<any>(null)
-    const socketRef = useRef<PartySocket | null>(null)
+    const [stxAddress, setStxAddress] = useState<string | null>(null)
+    const [userUuid, setUserUuid] = useState<string>("")
+    const { toast } = useToast()
 
-    const handleGlobalEvent = useCallback((event: GlobalEvent) => {
-        if (onEvent) onEvent(event)
-        if (event.type === 'connection_stats') {
-            setConnectionStats(event.data)
-        }
-    }, [onEvent])
-
-    const connect = useCallback(() => {
-        if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-            return
-        }
-        if (socketRef.current) {
-            socketRef.current.close()
-        }
-        setConnectionState('connecting')
-        const partyKitHost =
-            typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-                ? 'chess-game.r0zar.partykit.dev'
-                : 'localhost:1999'
-        const socket = new PartySocket({
-            host: partyKitHost,
-            room: 'global-events',
-        })
-        socket.onopen = () => setConnectionState('connected')
-        socket.onclose = () => setConnectionState('disconnected')
-        socket.onerror = () => setConnectionState('disconnected')
-        socket.onmessage = (event) => {
+    const globalSocket = usePartySocket({
+        host: getPartyKitHost(),
+        room: GLOBAL_EVENTS_ROOM,
+        onOpen: () => setGlobalConnectionState('connected'),
+        onClose: () => setGlobalConnectionState('disconnected'),
+        onError: () => setGlobalConnectionState('disconnected'),
+        onMessage: (event) => {
             try {
                 const data = JSON.parse(event.data)
                 handleGlobalEvent(data)
             } catch (error) {
                 console.error('[GlobalEventsProvider] Error parsing message:', error)
             }
-        }
-        socketRef.current = socket
-    }, [handleGlobalEvent])
+        },
+    })
 
-    const disconnect = useCallback(() => {
-        if (socketRef.current) {
-            socketRef.current.close()
-            socketRef.current = null
+    // Initialize userUuid from localStorage or create a new one
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            let uuid = localStorage.getItem('user-uuid')
+            if (!uuid) {
+                uuid = crypto.randomUUID()
+                localStorage.setItem('user-uuid', uuid)
+            }
+            setUserUuid(uuid)
         }
-        setConnectionState('disconnected')
     }, [])
+
+    function handleGlobalEvent(event: GlobalEvent) {
+        if (event.type === 'connection_stats') {
+            setConnectionStats(event.data)
+        }
+        if (event.type === 'challenge_request') {
+            if (event.data.userId !== userUuid) {
+                toast({
+                    title: '⚔️ New Challenge!',
+                    description: `${event.data.message}\nFrom: ${event.data.userId.substring(0, 6)}...${event.data.userId.slice(-4)}`,
+                    duration: 5000
+                })
+            }
+        }
+        if (event.type === 'game_ended') {
+            // Show a toast for all users (no userId in event, so show to everyone)
+            const winner = event.data.winner ? `Winner: ${event.data.winner}` : 'Draw';
+            const reason = event.data.reason ? `Reason: ${event.data.reason}` : '';
+            const status = event.data.status ? `Status: ${event.data.status}` : '';
+            toast({
+                title: '🏁 Game Ended',
+                description: `${winner}\n${reason}\n${status}`.trim(),
+                duration: 6000
+            })
+        }
+    }
+
+    function connect() {
+        if (globalSocket.readyState === WebSocket.OPEN) {
+            return
+        }
+        if (globalSocket) {
+            globalSocket.close()
+        }
+        setGlobalConnectionState('connecting')
+    }
+
+    function disconnect() {
+        if (globalSocket) {
+            globalSocket.close()
+        }
+        setGlobalConnectionState('disconnected')
+    }
 
     useEffect(() => {
         connect()
@@ -76,11 +116,14 @@ export default function GlobalEventsProvider({ children, onEvent }: GlobalEvents
     }, [])
 
     const contextValue: GlobalEventsContextValue = {
-        connectionState,
+        connectionState: globalConnectionState,
         connectionStats,
-        isConnected: connectionState === 'connected' && !!socketRef.current && socketRef.current.readyState === WebSocket.OPEN,
+        isConnected: globalConnectionState === 'connected' && !!globalSocket && globalSocket.readyState === WebSocket.OPEN,
         connect,
-        disconnect
+        disconnect,
+        stxAddress,
+        setStxAddress,
+        userUuid,
     }
     return (
         <GlobalEventsContext.Provider value={contextValue}>
@@ -89,10 +132,13 @@ export default function GlobalEventsProvider({ children, onEvent }: GlobalEvents
     )
 }
 
-export function useGlobalEvents() {
+function useGlobalEvents() {
     const context = useContext(GlobalEventsContext)
     if (!context) {
         throw new Error('useGlobalEvents must be used within a GlobalEventsProvider')
     }
     return context
-} 
+}
+
+export { useGlobalEvents }
+export type { GlobalEventsContextValue } 

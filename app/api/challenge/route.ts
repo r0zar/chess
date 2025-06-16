@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getOrCreateSessionId } from '@/lib/session'
 import { broadcastPartyKitEvent } from "@/lib/partykit"
 
 export async function POST(request: NextRequest) {
     try {
-        const userId = await getOrCreateSessionId()
         const body = await request.json()
-        const { message } = body
+        const { message, userUuid } = body
+
+        if (!userUuid || typeof userUuid !== 'string' || userUuid.trim().length === 0) {
+            return NextResponse.json(
+                { success: false, message: 'userUuid is required' },
+                { status: 400 }
+            )
+        }
 
         if (!message || typeof message !== 'string' || message.trim().length === 0) {
             return NextResponse.json(
@@ -25,14 +30,14 @@ export async function POST(request: NextRequest) {
         // Get user address from headers if available (from wallet connection)
         const userAddress = request.headers.get('x-user-address') || undefined
 
-        console.log(`[Challenge API] Broadcasting challenge request from user ${userId}: "${message}"`)
+        console.log(`[Challenge API] Broadcasting challenge request from user ${userUuid}: "${message}"`)
 
         // Broadcast the challenge request event via PartyKit
         await broadcastPartyKitEvent({
             event: {
                 type: 'challenge_request',
                 data: {
-                    userId,
+                    userId: userUuid,
                     userAddress,
                     message
                 }

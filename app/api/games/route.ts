@@ -33,8 +33,6 @@ export async function GET() {
           status: game!.status,
           playerWhiteId: game!.playerWhiteId || null,
           playerBlackId: game!.playerBlackId || null,
-          playerWhiteAddress: game!.playerWhiteAddress || null,
-          playerBlackAddress: game!.playerBlackAddress || null,
           winner: game!.winner || null,
         }
       }) as GameData[] // Type assertion after mapping

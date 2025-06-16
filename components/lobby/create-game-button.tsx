@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { createAndNavigateToGame } from "./actions" // Server Action
+import { createAndNavigateToGame } from "../../app/actions" // Server Action
 import { Loader2 } from "lucide-react" // For loading indicator
 
 export default function CreateGameButton() {

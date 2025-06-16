@@ -6,12 +6,14 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { Swords, Loader2 } from "lucide-react"
+import { useGlobalEvents } from "@/components/global-events-provider"
 
 export default function ChallengeRequestButton() {
     const [isOpen, setIsOpen] = useState(false)
     const [message, setMessage] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const { toast } = useToast()
+    const { userUuid } = useGlobalEvents()
 
     const defaultMessages = [
         "Anyone up for a quick game?",
@@ -34,6 +36,15 @@ export default function ChallengeRequestButton() {
             return
         }
 
+        if (!userUuid) {
+            toast({
+                title: "User ID Missing",
+                description: "Could not find your user ID. Please refresh the page.",
+                variant: "destructive"
+            })
+            return
+        }
+
         setIsLoading(true)
         console.log('[ChallengeRequestButton] *** Starting API call to /api/challenge')
 
@@ -43,7 +54,7 @@ export default function ChallengeRequestButton() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ message: message.trim() })
+                body: JSON.stringify({ message: message.trim(), userUuid })
             })
 
             console.log('[ChallengeRequestButton] *** API response status:', response.status)
