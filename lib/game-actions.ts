@@ -121,6 +121,7 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
     move?: Move
     expReward?: { amount: number, reason: string }
 }> {
+    console.log(`[MOVE] Received move for game ${gameId} from ${from} to ${to} by user ${userId}`)
     // Fetch game record
     const gameRecord = await kv.hgetall(`game:${gameId}`) as GameData | null
     if (!gameRecord || !gameRecord.currentFen) {
@@ -214,6 +215,7 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
     let expReward: { amount: number, reason: string } | undefined;
     const playerUser = await getUserById(userId)
     if (playerUser?.stxAddress) {
+        console.log(`[EXP REWARD] Attempting to issue 10 EXP to ${playerUser.stxAddress} for move in game ${gameId}`)
         expReward = calculateMoveEXP(moveResult, isCheck, isCheckmate);
         await issueExpReward({
             stxAddress: playerUser.stxAddress,
@@ -268,6 +270,7 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
             if (winnerId) {
                 const winnerUser = await getUserById(winnerId)
                 if (winnerUser?.stxAddress) {
+                    console.log(`[EXP REWARD] Attempting to issue 200 EXP to ${winnerUser.stxAddress} for win in game ${gameId}`)
                     winnerExpReward = calculateWinEXP(newGameStatus, moveNumber);
                     await issueExpReward({
                         stxAddress: winnerUser.stxAddress,
@@ -510,6 +513,7 @@ async function issueExpReward({ stxAddress, amount, reason }: { stxAddress: stri
     const [contractAddress, contractName] = CHARISMA_RULEBOOK_CONTRACT.split('.');
 
     try {
+        console.log(`[EXP REWARD] Sending ${amount} EXP to ${stxAddress} for: ${reason}`)
         const txOptions = {
             contractAddress,
             contractName,
@@ -523,10 +527,9 @@ async function issueExpReward({ stxAddress, amount, reason }: { stxAddress: stri
 
         const tx = await makeContractCall(txOptions);
         const result = await broadcastTransaction({ transaction: tx });
-        console.log(result)
         const txid = result.txid || result;
 
-        console.log(`[EXP REWARD] ✨ Sent ${amount} EXP to ${stxAddress} for ${reason}. TX: ${txid}`);
+        console.log(`[EXP REWARD] Sent ${amount} EXP to ${stxAddress} for ${reason}. TX:`, txid);
 
         // Enhanced logging to KV
         await kv.rpush('exp_rewards_log', JSON.stringify({
@@ -541,6 +544,6 @@ async function issueExpReward({ stxAddress, amount, reason }: { stxAddress: stri
                         reason.includes('promotion') ? 'promotion' : 'move'
         }))
     } catch (err) {
-        console.error('[EXP REWARD] ❌ Error issuing EXP:', err);
+        console.error('[EXP REWARD] Error issuing EXP:', err);
     }
 }
