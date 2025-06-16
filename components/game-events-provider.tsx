@@ -83,34 +83,111 @@ export default function GameEventsProvider({ children, gameId }: GameEventsProvi
 
     useEffect(() => {
         async function joinAndSync() {
-            await joinGame({ gameId: currentGameId, userId: userUuid });
+            const joinResult = await joinGame({ gameId: currentGameId, userId: userUuid });
+
+            // Show welcome bonus notification if received
+            if (joinResult.welcomeBonus && stxAddress) {
+                toast({
+                    title: `🎮 ${joinResult.welcomeBonus.amount} EXP Welcome Bonus!`,
+                    description: `Thanks for joining! Reward: ${joinResult.welcomeBonus.reason}`,
+                    duration: 5000
+                })
+            }
+
             await syncGameState(currentGameId, userUuid, false);
         }
         if (currentGameId && userUuid) {
             joinAndSync();
         }
-    }, [currentGameId, userUuid]);
+    }, [currentGameId, userUuid, stxAddress, toast]);
+
+    // Enhanced piece type names for better UX
+    const getPieceDisplayName = (piece: PieceSymbol): string => {
+        const names: Record<PieceSymbol, string> = {
+            'p': 'Pawn',
+            'n': 'Knight',
+            'b': 'Bishop',
+            'r': 'Rook',
+            'q': 'Queen',
+            'k': 'King'
+        }
+        return names[piece] || piece.toUpperCase()
+    }
+
+    // Enhanced move descriptions
+    const getMoveDescription = (move: Move, isCapture: boolean, isPromotion: boolean): string => {
+        const pieceName = getPieceDisplayName(move.piece)
+        let description = `${pieceName} ${move.from} → ${move.to}`
+
+        if (isCapture && move.captured) {
+            description += ` captures ${getPieceDisplayName(move.captured)}`
+        }
+        if (isPromotion && move.promotion) {
+            description += ` promotes to ${getPieceDisplayName(move.promotion)}`
+        }
+
+        return description
+    }
 
     function handleGameEvent(event: any) {
         console.log(`[GameEventsProvider] handleGameEvent:`, event)
-        // Handle move events for players in the game
+
         if (event.type === 'move') {
-            // Only show toast if the current user is a player in the game
+            const move = event.data.move
+            const playerId = event.data.playerId || ''
+            const isCapture = !!move?.captured
+            const isPromotion = !!move?.promotion
+
+            // Enhanced move notification for players
             if (userUuid && (userUuid === assignedWhiteId || userUuid === assignedBlackId)) {
-                const moveSan = event.data.move?.san || ''
-                const playerId = event.data.playerId || ''
+                const moveDescription = move ? getMoveDescription(move, isCapture, isPromotion) : 'Move played'
+                const playerName = `${playerId.substring(0, 6)}...${playerId.slice(-4)}`
+
+                // Different toast styles based on move type
+                let title = '♟️ Move Played'
+                let description = `${moveDescription} by ${playerName}`
+
+                if (isCapture && isPromotion) {
+                    title = '👑⚔️ Capture & Promotion!'
+                    description = `${moveDescription} by ${playerName}`
+                } else if (isCapture) {
+                    title = '⚔️ Piece Captured!'
+                    description = `${moveDescription} by ${playerName}`
+                } else if (isPromotion) {
+                    title = '👑 Pawn Promoted!'
+                    description = `${moveDescription} by ${playerName}`
+                } else if (move?.piece === 'k') {
+                    title = '👑 King Moves!'
+                    description = `${moveDescription} by ${playerName}`
+                }
+
                 toast({
-                    title: '♟️ Move Played',
-                    description: `${moveSan} by ${playerId.substring(0, 6)}...${playerId.slice(-4)}`,
-                    duration: 4000
+                    title,
+                    description,
+                    duration: 4500
                 })
             }
-            // Show EXP reward toast if this user made the move and has a wallet
+
+            // Enhanced EXP reward notification
             if (userUuid && stxAddress && event.data.playerId === userUuid) {
+                let expTitle = '✨ 10 EXP Earned!'
+                let expDescription = 'Strategic thinking rewarded!'
+
+                if (isCapture && isPromotion) {
+                    expTitle = '🚀 15 EXP Bonus!'
+                    expDescription = 'Capture + Promotion combo!'
+                } else if (isCapture) {
+                    expTitle = '⚡ 12 EXP Earned!'
+                    expDescription = 'Tactical capture executed!'
+                } else if (isPromotion) {
+                    expTitle = '👑 15 EXP Earned!'
+                    expDescription = 'Pawn promotion achieved!'
+                }
+
                 toast({
-                    title: '✨ 10 EXP Earned!',
-                    description: 'You received 10 EXP for making a move.',
-                    duration: 5000
+                    title: expTitle,
+                    description: expDescription,
+                    duration: 6000
                 })
             }
         }
@@ -134,7 +211,6 @@ export default function GameEventsProvider({ children, gameId }: GameEventsProvi
                 console.error('[GameEventsProvider] Error parsing game message:', error)
             }
         },
-        // Optionally add reconnect logic if needed
     })
 
     function connect(id: string) {
@@ -169,7 +245,7 @@ export default function GameEventsProvider({ children, gameId }: GameEventsProvi
             console.log(`[GameEventsProvider] syncGameState data:`, data)
             if ('message' in data) {
                 toast({
-                    title: "Error",
+                    title: "⚠️ Sync Error",
                     description: data.message,
                     variant: "destructive"
                 })
@@ -184,20 +260,25 @@ export default function GameEventsProvider({ children, gameId }: GameEventsProvi
             setAssignedWhiteId(data.assignedWhiteId)
             setAssignedBlackId(data.assignedBlackId)
             setMoveHistory(data.moveHistory || [])
+
             if (showSyncToast && lastSyncToastAddress !== (stxAddress === null ? undefined : stxAddress)) {
                 setLastSyncToastAddress(stxAddress === null ? undefined : stxAddress)
+                const roleIcon = data.clientPlayerColor === "w" ? "⚪" : data.clientPlayerColor === "b" ? "⚫" : "👀"
+                const roleText = data.clientPlayerColor
+                    ? `Playing as ${data.clientPlayerColor === "w" ? "White" : "Black"}`
+                    : "Spectating"
+
                 toast({
-                    title: "Game State Synced",
-                    description: data.clientPlayerColor
-                        ? `You are playing as ${data.clientPlayerColor === "w" ? "White" : "Black"}.`
-                        : "You are spectating.",
+                    title: `${roleIcon} Game Ready!`,
+                    description: `${roleText} • State synchronized`,
+                    duration: 4000
                 })
             }
         } catch (error) {
             console.error(`[GameEventsProvider] Error in syncGameState:`, error)
             toast({
-                title: "Error Syncing Game",
-                description: (error as Error).message,
+                title: "🔄 Sync Failed",
+                description: "Failed to synchronize game state",
                 variant: "destructive",
             })
         }
@@ -206,8 +287,10 @@ export default function GameEventsProvider({ children, gameId }: GameEventsProvi
     async function handleServerMoveAndUpdateState(from: Square, to: Square, promotion?: PieceSymbol): Promise<boolean> {
         if (isRefreshing) return false
         setIsRefreshing(true)
+
         try {
             const serverResponse = await makeServerMoveApi({ gameId: currentGameId, from, to, promotion, userId: userUuid })
+
             if (serverResponse.success && serverResponse.newFen && serverResponse.move) {
                 const updatedGame = new ChessJsAdapter(serverResponse.newFen)
                 setChessGame(updatedGame)
@@ -218,18 +301,44 @@ export default function GameEventsProvider({ children, gameId }: GameEventsProvi
                 setMoveHistory((prevHistory) => [...prevHistory, serverResponse.move!])
                 setPossibleMoves({})
                 setSelectedSquare(null)
+
+                // Enhanced success feedback
+                const move = serverResponse.move
+                const isCapture = !!move.captured
+                const isPromotion = !!move.promotion
+
+                let successTitle = '✅ Move Executed!'
+                if (isCapture && isPromotion) {
+                    successTitle = '🎯 Epic Combo!'
+                } else if (isCapture) {
+                    successTitle = '⚔️ Capture Success!'
+                } else if (isPromotion) {
+                    successTitle = '👑 Promotion Complete!'
+                }
+
+                // Brief success indication (no description to keep it clean)
+                toast({
+                    title: successTitle,
+                    duration: 2500
+                })
+
                 return true
             } else {
+                // Enhanced error feedback
                 toast({
-                    title: "Move Rejected",
-                    description: serverResponse.message || "The server did not allow this move.",
+                    title: "❌ Invalid Move",
+                    description: serverResponse.message || "That move is not allowed",
                     variant: "destructive",
                 })
                 await syncGameState(currentGameId, userUuid, false)
                 return false
             }
         } catch (error) {
-            toast({ title: "Move Error", description: (error as Error).message, variant: "destructive" })
+            toast({
+                title: "🚫 Move Failed",
+                description: "Connection error - please try again",
+                variant: "destructive"
+            })
             await syncGameState(currentGameId, userUuid, false)
             return false
         } finally {
@@ -239,95 +348,156 @@ export default function GameEventsProvider({ children, gameId }: GameEventsProvi
 
     function onPieceDrop(sourceSquare: LibSquare, targetSquare: LibSquare): boolean {
         if (!chessGame) return false
+
         const gameIsEffectivelyOver = chessGame.isGameOver() || (gameStatus !== "ongoing" && gameStatus !== "pending")
         if (currentTurn !== clientPlayerColor || !clientPlayerColor || gameIsEffectivelyOver) {
             return false
         }
+
         const from = sourceSquare as Square
         const to = targetSquare as Square
         let promotionPiece: PieceSymbol | undefined = undefined
+
         const pieceDetail = chessGame.getPieceAt(from)
         if (pieceDetail?.type === "p") {
             if ((pieceDetail.color === "w" && to[1] === "8") || (pieceDetail.color === "b" && to[1] === "1")) {
                 promotionPiece = "q"
                 toast({
-                    title: "Pawn Promotion",
-                    description: "Promoted to Queen. UI for selection is pending.",
+                    title: "👑 Pawn Promotion!",
+                    description: "Your pawn has been promoted to Queen",
+                    duration: 4000
                 })
             }
         }
+
         const tempGame = new ChessJsAdapter(currentFen ?? undefined)
         const localMoveResult = tempGame.makeMove({ from, to, promotion: promotionPiece })
+
         if (localMoveResult === null) {
+            // Enhanced invalid move feedback
+            toast({
+                title: "🚫 Invalid Move",
+                description: "That piece cannot move there",
+                variant: "destructive",
+                duration: 2000
+            })
             return false
         }
+
         handleServerMoveAndUpdateState(from, to, promotionPiece)
         return true
     }
 
     function onSquareClick(square: LibSquare) {
         if (!chessGame || isRefreshing) return
+
         const gameIsEffectivelyOver = chessGame.isGameOver() || (gameStatus !== "ongoing" && gameStatus !== "pending")
         if (currentTurn !== clientPlayerColor || !clientPlayerColor || gameIsEffectivelyOver) {
             setSelectedSquare(null)
             setPossibleMoves({})
             return
         }
+
         const sq = square as Square
+
         if (!selectedSquare) {
+            // Selecting a piece
             const pieceDetail = chessGame.getPieceAt(sq)
             if (pieceDetail && pieceDetail.color === currentTurn) {
                 setSelectedSquare(sq as Square)
                 const moves = chessGame.getPossibleMoves(sq)
                 const newPossibleMoves: Record<string, React.CSSProperties> = {}
+
                 moves.forEach((m) => {
+                    const isCapture = !!m.captured
+                    const isSpecialMove = isCapture || !!m.promotion
+
                     newPossibleMoves[m.to] = {
-                        background: m.captured
-                            ? "radial-gradient(circle, rgba(239, 68, 68, 0.4) 25%, transparent 30%)"
-                            : "radial-gradient(circle, rgba(59, 130, 246, 0.3) 25%, transparent 30%)",
+                        background: isCapture
+                            ? "radial-gradient(circle, rgba(239, 68, 68, 0.6) 15%, rgba(239, 68, 68, 0.2) 30%, transparent 70%)"
+                            : "radial-gradient(circle, rgba(34, 197, 94, 0.5) 15%, rgba(34, 197, 94, 0.15) 30%, transparent 70%)",
+                        boxShadow: isSpecialMove
+                            ? "inset 0 0 0 3px rgba(251, 191, 36, 0.6), 0 0 8px rgba(251, 191, 36, 0.4)"
+                            : "inset 0 0 0 2px rgba(34, 197, 94, 0.4)",
+                        borderRadius: "8px",
+                        transition: "all 0.2s ease-in-out",
                     }
                 })
-                newPossibleMoves[sq] = { background: "rgba(250, 204, 21, 0.5)" }
+
+                // Enhanced selected square styling
+                newPossibleMoves[sq] = {
+                    background: "linear-gradient(135deg, rgba(251, 191, 36, 0.4) 0%, rgba(245, 158, 11, 0.6) 100%)",
+                    boxShadow: "inset 0 0 0 3px rgba(251, 191, 36, 0.8), 0 0 12px rgba(251, 191, 36, 0.5)",
+                    borderRadius: "8px",
+                    transform: "scale(1.02)",
+                    transition: "all 0.2s ease-in-out",
+                }
                 setPossibleMoves(newPossibleMoves)
             }
         } else {
+            // Square already selected
             if (sq === selectedSquare) {
+                // Deselecting
                 setSelectedSquare(null)
                 setPossibleMoves({})
                 return
             }
+
             const currentPossibleTos = Object.keys(possibleMoves).filter((s) => s !== (selectedSquare ?? undefined)) as Square[]
+
             if (currentPossibleTos.includes(sq)) {
+                // Making a move
                 let promotionPiece: PieceSymbol | undefined = undefined
                 const pieceDetail = chessGame.getPieceAt(selectedSquare as Square)
+
                 if (pieceDetail?.type === "p") {
                     if ((pieceDetail.color === "w" && sq[1] === "8") || (pieceDetail.color === "b" && sq[1] === "1")) {
                         promotionPiece = "q"
                         toast({
-                            title: "Pawn Promotion",
-                            description: "Promoted to Queen. UI for selection is pending.",
+                            title: "👑 Pawn Promotion!",
+                            description: "Your pawn has been promoted to Queen",
+                            duration: 4000
                         })
                     }
                 }
+
                 if (selectedSquare && sq) {
                     handleServerMoveAndUpdateState(selectedSquare as Square, sq as Square, promotionPiece)
                 }
             } else {
+                // Selecting a different piece
                 const pieceDetail = chessGame.getPieceAt(sq)
                 if (pieceDetail && pieceDetail.color === currentTurn) {
                     setSelectedSquare(sq as Square)
                     const moves = chessGame.getPossibleMoves(sq)
                     const newPossibleMoves: Record<string, React.CSSProperties> = {}
+
                     moves.forEach((m) => {
+                        const isCapture = !!m.captured
+                        const isSpecialMove = isCapture || !!m.promotion
+
                         newPossibleMoves[m.to] = {
-                            background: m.captured
-                                ? "radial-gradient(circle, rgba(239, 68, 68, 0.4) 25%, transparent 30%)"
-                                : "radial-gradient(circle, rgba(59, 130, 246, 0.3) 25%, transparent 30%)",
+                            background: isCapture
+                                ? "radial-gradient(circle, rgba(239, 68, 68, 0.6) 15%, rgba(239, 68, 68, 0.2) 30%, transparent 70%)"
+                                : "radial-gradient(circle, rgba(34, 197, 94, 0.5) 15%, rgba(34, 197, 94, 0.15) 30%, transparent 70%)",
+                            boxShadow: isSpecialMove
+                                ? "inset 0 0 0 3px rgba(251, 191, 36, 0.6), 0 0 8px rgba(251, 191, 36, 0.4)"
+                                : "inset 0 0 0 2px rgba(34, 197, 94, 0.4)",
+                            borderRadius: "8px",
+                            transition: "all 0.2s ease-in-out",
                         }
                     })
-                    newPossibleMoves[sq] = { background: "rgba(250, 204, 21, 0.5)" }
+
+                    newPossibleMoves[sq] = {
+                        background: "linear-gradient(135deg, rgba(251, 191, 36, 0.4) 0%, rgba(245, 158, 11, 0.6) 100%)",
+                        boxShadow: "inset 0 0 0 3px rgba(251, 191, 36, 0.8), 0 0 12px rgba(251, 191, 36, 0.5)",
+                        borderRadius: "8px",
+                        transform: "scale(1.02)",
+                        transition: "all 0.2s ease-in-out",
+                    }
                     setPossibleMoves(newPossibleMoves)
                 } else {
+                    // Clicked empty square or opponent piece - deselect
                     setSelectedSquare(null)
                     setPossibleMoves({})
                 }
@@ -390,4 +560,4 @@ export function useGameEvents() {
         throw new Error('useGameEvents must be used within a GameEventsProvider')
     }
     return context
-} 
+}

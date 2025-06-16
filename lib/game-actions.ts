@@ -13,13 +13,100 @@ import { identityToPieceSymbol } from "@/lib/chess-logic/mappers"
 import type { PlayerColorIdentity, PieceTypeIdentity } from "@/lib/chess-data.types"
 import type { PieceSymbol } from "@/lib/chess-logic/types"
 import { makeContractCall, broadcastTransaction, standardPrincipalCV, uintCV } from '@stacks/transactions';
-import { STACKS_TESTNET, STACKS_MAINNET } from '@stacks/network';
+import { STACKS_MAINNET } from '@stacks/network';
 
 const CHARISMA_RULEBOOK_CONTRACT = process.env.CHARISMA_RULEBOOK_CONTRACT!;
 const CHARISMA_HOT_WALLET_PRIVATE_KEY = process.env.CHARISMA_HOT_WALLET_PRIVATE_KEY!;
-const STACKS_NETWORK = process.env.STACKS_NETWORK === 'mainnet'
-    ? STACKS_MAINNET
-    : STACKS_TESTNET;
+const STACKS_NETWORK = STACKS_MAINNET
+
+// Enhanced EXP calculation based on move type
+function calculateMoveEXP(moveResult: any, isCheck: boolean, isCheckmate: boolean): { amount: number, reason: string } {
+    let baseEXP = 10;
+    let bonusEXP = 0;
+    let reasons: string[] = [];
+
+    // Base move EXP
+    reasons.push("strategic move");
+
+    // Capture bonus
+    if (moveResult.captured) {
+        bonusEXP += 2;
+        reasons.push("tactical capture");
+    }
+
+    // Promotion bonus
+    if (moveResult.promotion) {
+        bonusEXP += 5;
+        reasons.push("pawn promotion");
+    }
+
+    // Special piece bonuses
+    if (moveResult.piece === 'q') {
+        bonusEXP += 1;
+        reasons.push("queen maneuver");
+    } else if (moveResult.piece === 'k') {
+        bonusEXP += 1;
+        reasons.push("king move");
+    }
+
+    // Check bonus
+    if (isCheck && !isCheckmate) {
+        bonusEXP += 3;
+        reasons.push("check");
+    }
+
+    // Checkmate bonus (will be in addition to win bonus)
+    if (isCheckmate) {
+        bonusEXP += 10;
+        reasons.push("checkmate delivery");
+    }
+
+    // Castling bonus
+    if (moveResult.flags.includes('k') || moveResult.flags.includes('q')) {
+        bonusEXP += 3;
+        reasons.push("castling");
+    }
+
+    // En passant bonus
+    if (moveResult.flags.includes('e')) {
+        bonusEXP += 2;
+        reasons.push("en passant");
+    }
+
+    const totalEXP = baseEXP + bonusEXP;
+    const reasonText = reasons.join(" + ");
+
+    return { amount: totalEXP, reason: reasonText };
+}
+
+// Enhanced win EXP calculation
+function calculateWinEXP(gameStatus: GameStatus, moveCount: number): { amount: number, reason: string } {
+    let baseWinEXP = 200;
+    let bonusEXP = 0;
+    let reasons = ["victory"];
+
+    // Checkmate bonus
+    if (gameStatus.includes("checkmate")) {
+        bonusEXP += 50;
+        reasons.push("checkmate finish");
+    }
+
+    // Quick game bonus (under 20 moves)
+    if (moveCount < 20) {
+        bonusEXP += 30;
+        reasons.push("swift victory");
+    }
+    // Long game bonus (over 50 moves)
+    else if (moveCount > 50) {
+        bonusEXP += 20;
+        reasons.push("endurance victory");
+    }
+
+    const totalEXP = baseWinEXP + bonusEXP;
+    const reasonText = reasons.join(" + ");
+
+    return { amount: totalEXP, reason: reasonText };
+}
 
 export async function makeServerMoveApi({ gameId, from, to, promotion, userId }: {
     gameId: string
@@ -34,6 +121,7 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
     gameStatus?: string
     winner?: PlayerColor
     move?: Move
+    expReward?: { amount: number, reason: string }
 }> {
     // Fetch game record
     const gameRecord = await kv.hgetall(`game:${gameId}`) as GameData | null
@@ -72,6 +160,8 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
     const fenAfterMove = game.getFen()
     const newStatusFromEngine = game.getStatus()
     const gameWinnerFromEngine = game.getWinner()
+    const isCheck = game.isCheck()
+    const isCheckmate = newStatusFromEngine === "checkmate"
 
     let newGameStatus: GameStatus = "ongoing"
     if (gameRecord.status === "pending" && gameRecord.playerWhiteId && gameRecord.playerBlackId) {
@@ -95,6 +185,7 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
     await kv.hset(`game:${gameId}`, cleanKVData(updatedGameFields))
     await kv.zadd("games_by_update_time", { score: now, member: gameId })
 
+    // Get current move count for win EXP calculation
     const movesListKey = `moves:${gameId}`
     const currentMoveCount = await kv.llen(movesListKey)
     const moveNumber = currentMoveCount + 1
@@ -111,8 +202,8 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
         isCapture: moveResult.flags.includes("c"),
         capturedPiece: pieceSymbolToIdentity(moveResult.captured),
         moveFlags: moveResult.flags,
-        isCheck: game.isCheck(),
-        isCheckmate: newGameStatus.includes("checkmate"),
+        isCheck: isCheck,
+        isCheckmate: isCheckmate,
         isStalemate: newGameStatus === "stalemate",
         san: moveResult.san,
         fenBeforeMove,
@@ -121,7 +212,19 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
     }
     await kv.rpush(movesListKey, JSON.stringify(moveData))
 
-    // Broadcast move event to all connected players
+    // Calculate and issue EXP reward for the move
+    let expReward: { amount: number, reason: string } | undefined;
+    const playerUser = await getUserById(userId)
+    if (playerUser?.stxAddress) {
+        expReward = calculateMoveEXP(moveResult, isCheck, isCheckmate);
+        await issueExpReward({
+            stxAddress: playerUser.stxAddress,
+            amount: expReward.amount,
+            reason: `${expReward.reason} in game ${gameId}`
+        })
+    }
+
+    // Broadcast enhanced move event to all connected players
     await broadcastPartyKitEvent({
         event: {
             type: 'move',
@@ -133,26 +236,26 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
                     winner: gameWinnerFromEngine,
                     turn: game.getTurn()
                 },
-                playerId: userId
+                playerId: userId,
+                expReward: expReward,
+                moveEffects: {
+                    isCapture: moveResult.captured ? true : false,
+                    isPromotion: moveResult.promotion ? true : false,
+                    isCheck: isCheck,
+                    isCheckmate: isCheckmate,
+                    isCastling: moveResult.flags.includes('k') || moveResult.flags.includes('q'),
+                    isEnPassant: moveResult.flags.includes('e')
+                }
             }
         },
         gameId
     })
 
-    // --- EXP REWARD: 10 EXP for each move (if wallet connected) ---
-    const playerUser = await getUserById(userId)
-    if (playerUser?.stxAddress) {
-        await issueExpReward({
-            stxAddress: playerUser.stxAddress,
-            amount: 10,
-            reason: `Move in game ${gameId}`
-        })
-    }
-
-    // Broadcast game end event if the game is over
+    // Handle game end with enhanced win rewards
     if (newGameStatus !== "ongoing" && newGameStatus !== "pending") {
         let endReason = "Game ended"
-        let expRewarded = 0
+        let winnerExpReward: { amount: number, reason: string } | undefined;
+
         if (newGameStatus.includes("checkmate")) {
             endReason = `Checkmate! ${gameWinnerFromEngine === "w" ? "White" : "Black"} wins`
         } else if (newGameStatus === "stalemate") {
@@ -160,21 +263,23 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
         } else if (newGameStatus.startsWith("draw_")) {
             endReason = "Draw"
         }
-        // --- EXP REWARD: 200 EXP for winning a game (if wallet connected) ---
+
+        // Enhanced win EXP reward
         if (gameWinnerFromEngine) {
             const winnerId = gameWinnerFromEngine === "w" ? gameRecord.playerWhiteId : gameRecord.playerBlackId
             if (winnerId) {
                 const winnerUser = await getUserById(winnerId)
                 if (winnerUser?.stxAddress) {
-                    expRewarded = 200
+                    winnerExpReward = calculateWinEXP(newGameStatus, moveNumber);
                     await issueExpReward({
                         stxAddress: winnerUser.stxAddress,
-                        amount: 200,
-                        reason: `Win in game ${gameId}`
+                        amount: winnerExpReward.amount,
+                        reason: `${winnerExpReward.reason} in game ${gameId}`
                     })
                 }
             }
         }
+
         await broadcastPartyKitEvent({
             event: {
                 type: 'game_ended',
@@ -182,9 +287,15 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
                     winner: gameWinnerFromEngine,
                     reason: endReason,
                     status: newGameStatus,
-                    expRewarded
+                    winnerExpReward: winnerExpReward,
+                    gameStats: {
+                        totalMoves: moveNumber,
+                        gameType: newGameStatus.includes("checkmate") ? "checkmate" :
+                            newGameStatus === "stalemate" ? "stalemate" : "draw"
+                    }
                 }
-            }
+            },
+            gameId
         })
     }
 
@@ -194,17 +305,25 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
         move: moveResult,
         gameStatus: newGameStatus,
         winner: gameWinnerFromEngine,
+        expReward: expReward,
     }
 }
 
-// --- JOIN GAME: Assign user to a color if possible ---
-export async function joinGame({ gameId, userId }: { gameId: string, userId: string }): Promise<{ assignedColor?: PlayerColor, message?: string }> {
+// Enhanced join game with welcome bonus
+export async function joinGame({ gameId, userId }: { gameId: string, userId: string }): Promise<{
+    assignedColor?: PlayerColor,
+    message?: string,
+    welcomeBonus?: { amount: number, reason: string }
+}> {
     const gameData = await kv.hgetall(`game:${gameId}`) as GameData | null
     if (!gameData || !gameData.currentFen) {
         return { message: "Game not found or data incomplete." }
     }
+
     let assignedColor: PlayerColor | undefined = undefined
+    let welcomeBonus: { amount: number, reason: string } | undefined;
     const updatePayload: Partial<GameData> = {}
+
     if (gameData.playerWhiteId === userId) {
         assignedColor = "w"
     } else if (gameData.playerBlackId === userId) {
@@ -212,21 +331,55 @@ export async function joinGame({ gameId, userId }: { gameId: string, userId: str
     } else if (!gameData.playerWhiteId) {
         updatePayload.playerWhiteId = userId
         assignedColor = "w"
+        // Welcome bonus for joining
+        const playerUser = await getUserById(userId)
+        if (playerUser?.stxAddress) {
+            welcomeBonus = { amount: 5, reason: "game participation" };
+            await issueExpReward({
+                stxAddress: playerUser.stxAddress,
+                amount: welcomeBonus.amount,
+                reason: `${welcomeBonus.reason} in game ${gameId}`
+            })
+        }
     } else if (!gameData.playerBlackId) {
         updatePayload.playerBlackId = userId
         assignedColor = "b"
+        // Welcome bonus for joining and completing the game setup
+        const playerUser = await getUserById(userId)
+        if (playerUser?.stxAddress) {
+            welcomeBonus = { amount: 5, reason: "game participation" };
+            await issueExpReward({
+                stxAddress: playerUser.stxAddress,
+                amount: welcomeBonus.amount,
+                reason: `${welcomeBonus.reason} in game ${gameId}`
+            })
+        }
+
+        // Game start bonus for both players when game becomes ready
+        if (gameData.playerWhiteId) {
+            const whiteUser = await getUserById(gameData.playerWhiteId)
+            if (whiteUser?.stxAddress) {
+                await issueExpReward({
+                    stxAddress: whiteUser.stxAddress,
+                    amount: 5,
+                    reason: `game start bonus in game ${gameId}`
+                })
+            }
+        }
     } else {
         return { message: "Both player slots are filled. You are a spectator." }
     }
+
     if (Object.keys(updatePayload).length > 0) {
         updatePayload.updatedAt = Date.now()
         await kv.hset(`game:${gameId}`, cleanKVData(updatePayload))
         await kv.zadd("games_by_update_time", { score: updatePayload.updatedAt, member: gameId })
     }
-    return { assignedColor }
+
+    return { assignedColor, welcomeBonus }
 }
 
-// --- GET GAME STATE: Pure read, never mutates assignment ---
+// GET GAME STATE: Pure read, never mutates assignment
 export async function getGameState({ gameId, userId }: { gameId: string, userId: string }): Promise<{
     gameId: string
     fen: string
@@ -246,7 +399,8 @@ export async function getGameState({ gameId, userId }: { gameId: string, userId:
         let clientPlayerColor: PlayerColor | undefined = undefined
         if (gameData.playerWhiteId === userId) clientPlayerColor = "w"
         else if (gameData.playerBlackId === userId) clientPlayerColor = "b"
-        // --- Move history logic (unchanged) ---
+
+        // Enhanced move history logic
         const gameLogic = new ChessJsAdapter(gameData.currentFen)
         const movesListKey = `moves:${gameId}`
         const rawMovesData = await kv.lrange<string | MoveData>(movesListKey, 0, -1)
@@ -258,19 +412,54 @@ export async function getGameState({ gameId, userId }: { gameId: string, userId:
                 } else if (typeof item === "object" && item !== null) {
                     dbMove = item as MoveData
                 } else { return null }
-                if (!dbMove || typeof dbMove.fromSquare !== "string" || typeof dbMove.toSquare !== "string" || typeof dbMove.playerColor !== "string" || dbMove.playerColor.trim() === "" || typeof dbMove.piece !== "string" || dbMove.piece.trim() === "") { return null }
+
+                if (!dbMove || typeof dbMove.fromSquare !== "string" || typeof dbMove.toSquare !== "string" ||
+                    typeof dbMove.playerColor !== "string" || dbMove.playerColor.trim() === "" ||
+                    typeof dbMove.piece !== "string" || dbMove.piece.trim() === "") {
+                    return null
+                }
+
                 let moveColor: PlayerColor | undefined = mapIdentityToColor(dbMove.playerColor as PlayerColorIdentity)
-                if (!moveColor && (dbMove.playerColor.toLowerCase() === "w" || dbMove.playerColor.toLowerCase() === "b")) { moveColor = dbMove.playerColor.toLowerCase() as PlayerColor }
+                if (!moveColor && (dbMove.playerColor.toLowerCase() === "w" || dbMove.playerColor.toLowerCase() === "b")) {
+                    moveColor = dbMove.playerColor.toLowerCase() as PlayerColor
+                }
+
                 let movePiece: PieceSymbol | undefined = identityToPieceSymbol(dbMove.piece as PieceTypeIdentity)
                 if (!movePiece && dbMove.piece.length === 1) {
                     const potentialPieceSymbol = dbMove.piece.toLowerCase() as PieceSymbol
-                    if (["p", "n", "b", "r", "q", "k"].includes(potentialPieceSymbol)) { movePiece = potentialPieceSymbol }
+                    if (["p", "n", "b", "r", "q", "k"].includes(potentialPieceSymbol)) {
+                        movePiece = potentialPieceSymbol
+                    }
                 }
+
                 if (!moveColor || !movePiece) { return null }
-                const flags = dbMove.moveFlags || (() => { let f = ""; if (dbMove.isCapture) f += "c"; if (dbMove.promotion) f += "p"; if (dbMove.san) { if (dbMove.san.includes("x") && !f.includes("c")) f += "c"; if (dbMove.san.includes("=") && !f.includes("p")) f += "p"; if (dbMove.san === "O-O") return "k"; if (dbMove.san === "O-O-O") return "q"; } return f || "n" })()
-                return { from: dbMove.fromSquare as Square, to: dbMove.toSquare as Square, color: moveColor, piece: movePiece, promotion: dbMove.promotion ? identityToPieceSymbol(dbMove.promotion as PieceTypeIdentity) : undefined, captured: dbMove.capturedPiece ? identityToPieceSymbol(dbMove.capturedPiece) : undefined, san: dbMove.san || "N/A", flags: flags }
+
+                const flags = dbMove.moveFlags || (() => {
+                    let f = "";
+                    if (dbMove.isCapture) f += "c";
+                    if (dbMove.promotion) f += "p";
+                    if (dbMove.san) {
+                        if (dbMove.san.includes("x") && !f.includes("c")) f += "c";
+                        if (dbMove.san.includes("=") && !f.includes("p")) f += "p";
+                        if (dbMove.san === "O-O") return "k";
+                        if (dbMove.san === "O-O-O") return "q";
+                    }
+                    return f || "n"
+                })()
+
+                return {
+                    from: dbMove.fromSquare as Square,
+                    to: dbMove.toSquare as Square,
+                    color: moveColor,
+                    piece: movePiece,
+                    promotion: dbMove.promotion ? identityToPieceSymbol(dbMove.promotion as PieceTypeIdentity) : undefined,
+                    captured: dbMove.capturedPiece ? identityToPieceSymbol(dbMove.capturedPiece) : undefined,
+                    san: dbMove.san || "N/A",
+                    flags: flags
+                }
             })
             .filter((move) => move !== null) as Move[]
+
         return {
             gameId: gameData.id,
             fen: gameData.currentFen,
@@ -313,13 +502,15 @@ export async function getUserAddressesForGame(gameData: GameData): Promise<{ whi
     }
 }
 
-// Real EXP issuance using Charisma Rulebook contract
+// Enhanced EXP issuance with better logging
 async function issueExpReward({ stxAddress, amount, reason }: { stxAddress: string, amount: number, reason: string }) {
     if (!CHARISMA_RULEBOOK_CONTRACT || !CHARISMA_HOT_WALLET_PRIVATE_KEY) {
         console.error('[EXP REWARD] Missing contract or private key env vars');
         return;
     }
+
     const [contractAddress, contractName] = CHARISMA_RULEBOOK_CONTRACT.split('.');
+
     try {
         const txOptions = {
             contractAddress,
@@ -331,19 +522,27 @@ async function issueExpReward({ stxAddress, amount, reason }: { stxAddress: stri
             ],
             senderKey: CHARISMA_HOT_WALLET_PRIVATE_KEY,
         };
+
         const tx = await makeContractCall(txOptions);
         const result = await broadcastTransaction({ transaction: tx, network: STACKS_NETWORK });
+        console.log(result)
         const txid = result.txid || result;
-        console.log(`[EXP REWARD] Sent ${amount} EXP to ${stxAddress} for ${reason}. TX:`, txid);
-        // Log to KV
+
+        console.log(`[EXP REWARD] ✨ Sent ${amount} EXP to ${stxAddress} for ${reason}. TX: ${txid}`);
+
+        // Enhanced logging to KV
         await kv.rpush('exp_rewards_log', JSON.stringify({
             stxAddress,
             amount,
             reason,
             txid,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            type: reason.includes('victory') ? 'win' :
+                reason.includes('checkmate') ? 'checkmate' :
+                    reason.includes('capture') ? 'capture' :
+                        reason.includes('promotion') ? 'promotion' : 'move'
         }))
     } catch (err) {
-        console.error('[EXP REWARD] Error issuing EXP:', err);
+        console.error('[EXP REWARD] ❌ Error issuing EXP:', err);
     }
-} 
+}

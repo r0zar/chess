@@ -2,17 +2,16 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import type { GameData } from "@/lib/chess-data.types"
 import RelativeTimeDisplay from "@/components/relative-time-display"
 import CreateGameButton from "@/components/lobby/create-game-button"
 import ChallengeRequestButton from "@/components/lobby/challenge-request-button"
 import Auth from "@/components/auth"
+import GameCard from "@/components/lobby/game-card"
 import { useState, useEffect, useCallback } from "react"
 import { useToast } from "@/hooks/use-toast"
-import { Crown, CircleUser, Trophy, Zap, Users, TrendingUp } from "lucide-react"
-import GameCard from "@/components/lobby/game-card"
+import { Crown, Trophy, Zap, Users, TrendingUp, Sparkles, Target, Swords } from "lucide-react"
 
 async function fetchGamesListClientSide(): Promise<GameData[]> {
   try {
@@ -84,14 +83,6 @@ export default function HomePage() {
     loadGames()
   }, [loadGames])
 
-  useEffect(() => {
-    console.log('[HomePage] Component mounted');
-  }, []);
-
-  useEffect(() => {
-    console.log('[HomePage] games loaded:', games.length, 'games');
-  }, [games]);
-
   const getStatusBadgeVariant = (status: string | null): "default" | "secondary" | "outline" | "destructive" => {
     if (!status) return "secondary"
     if (status.includes("wins")) return "default"
@@ -120,7 +111,7 @@ export default function HomePage() {
             <Link href="/" className="flex items-center space-x-3">
               <div className="relative">
                 <Crown className="h-7 w-7 text-amber-400" />
-                <div className="absolute -inset-1 bg-amber-400/20 rounded-full blur-sm" />
+                <div className="absolute -inset-1 bg-amber-400/20 rounded-full blur-sm animate-pulse" />
               </div>
               <span className="text-xl font-semibold text-white tracking-tight">Stacks Chess</span>
             </Link>
@@ -140,10 +131,10 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="relative pt-24 pb-20 px-6 lg:px-8 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950" />
-        <div className="absolute top-1/2 left-1/4 w-96 h-96 bg-amber-400/3 rounded-full blur-3xl transform -translate-y-1/2" />
-        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-blue-400/3 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/4 w-96 h-96 bg-amber-400/5 rounded-full blur-3xl transform -translate-y-1/2" />
+        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-blue-400/5 rounded-full blur-3xl" />
 
-        {/* Minimal floating particles */}
+        {/* Floating particles */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-20 left-20 text-2xl animate-levitate opacity-60">✨</div>
           <div className="absolute top-1/3 right-20 text-2xl animate-drift opacity-40">⭐</div>
@@ -152,9 +143,9 @@ export default function HomePage() {
         </div>
 
         <div className="relative max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-16 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-16 items-start">
             {/* Left side - Hero content (2/3 width) */}
-            <div className="lg:col-span-2 space-y-10">
+            <div className="lg:col-span-3 space-y-10">
               <div className="space-y-6">
                 <h1 className="text-5xl md:text-6xl xl:text-7xl font-bold text-white tracking-tight leading-[1.1]">
                   Strategic
@@ -163,7 +154,7 @@ export default function HomePage() {
                   </span>
                 </h1>
                 <p className="text-xl text-neutral-300 leading-relaxed max-w-2xl">
-                  Experience chess like never before on the blockchain. Every move matters, every victory counts.
+                  Experience chess like never before on the blockchain. Every move earns EXP, every victory builds your legacy.
                 </p>
               </div>
 
@@ -201,55 +192,105 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* Right side - EXP Rewards (1/3 width) */}
-            <div className="relative lg:col-span-1">
+            {/* Right side - Enhanced EXP Rewards */}
+            <div className="relative lg:col-span-2">
               <div className="bg-neutral-900/60 backdrop-blur-xl border border-neutral-800/60 rounded-2xl p-6 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/5 via-transparent to-amber-600/5" />
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/8 via-transparent to-amber-600/8" />
 
                 <div className="relative z-10 space-y-5">
                   <div className="text-center">
-                    <div className="flex items-center justify-center space-x-2 mb-2">
-                      <div className="text-xl animate-gentle-bounce">✨</div>
+                    <div className="flex items-center justify-center space-x-2 mb-3">
+                      <div className="text-2xl animate-gentle-bounce">✨</div>
                       <h3 className="text-lg font-semibold bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent">
-                        EXP Rewards
+                        EXP Token Rewards
                       </h3>
                     </div>
-                    <p className="text-neutral-400 text-sm">Level up with every move</p>
+                    <p className="text-neutral-400 text-sm">Earn more for strategic play</p>
                   </div>
 
                   <div className="space-y-3">
-                    {/* Move reward */}
-                    <div className="flex items-center justify-between bg-neutral-800/60 rounded-xl p-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                          <Zap className="h-4 w-4 text-blue-400" />
+                    {/* Base move reward */}
+                    <div className="grid grid-cols-2 grid-rows-2 gap-2">
+                      <div className="bg-neutral-800/60 rounded-lg p-2 border border-neutral-700/30 flex flex-col justify-between">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-blue-500/20 rounded-md flex items-center justify-center">
+                            <Target className="h-3.5 w-3.5 text-blue-400" />
+                          </div>
+                          <div>
+                            <div className="text-white text-xs font-medium">Base Move</div>
+                            <div className="text-neutral-500 text-[10px]">Strategic thinking</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-white text-sm font-medium">Every Move</div>
-                          <div className="text-neutral-500 text-xs">Strategic play</div>
+                        <div className="text-right mt-1">
+                          <div className="text-base font-bold text-blue-400">+10</div>
+                          <div className="text-[10px] text-neutral-500">EXP</div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-blue-400">+10</div>
-                        <div className="text-xs text-neutral-500">EXP</div>
+
+                      {/* Capture bonus */}
+                      <div className="bg-red-900/30 rounded-lg p-2 border border-red-500/20 flex flex-col justify-between">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-red-500/20 rounded-md flex items-center justify-center">
+                            <Swords className="h-3.5 w-3.5 text-red-400" />
+                          </div>
+                          <div>
+                            <div className="text-white text-xs font-medium">Capture Bonus</div>
+                            <div className="text-neutral-500 text-[10px]">Tactical execution</div>
+                          </div>
+                        </div>
+                        <div className="text-right mt-1">
+                          <div className="text-base font-bold text-red-400">+2</div>
+                          <div className="text-[10px] text-neutral-500">EXP</div>
+                        </div>
+                      </div>
+
+                      {/* Promotion bonus */}
+                      <div className="bg-purple-900/30 rounded-lg p-2 border border-purple-500/20 flex flex-col justify-between">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-purple-500/20 rounded-md flex items-center justify-center">
+                            <Crown className="h-3.5 w-3.5 text-purple-400" />
+                          </div>
+                          <div>
+                            <div className="text-white text-xs font-medium">Promotion</div>
+                            <div className="text-neutral-500 text-[10px]">Strategic advance</div>
+                          </div>
+                        </div>
+                        <div className="text-right mt-1">
+                          <div className="text-base font-bold text-purple-400">+5</div>
+                          <div className="text-[10px] text-neutral-500">EXP</div>
+                        </div>
+                      </div>
+
+                      {/* Victory reward */}
+                      <div className="bg-amber-900/40 rounded-lg p-2 border border-amber-500/30 flex flex-col justify-between">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-amber-500/20 rounded-md flex items-center justify-center">
+                            <Trophy className="h-3.5 w-3.5 text-amber-400" />
+                          </div>
+                          <div>
+                            <div className="text-white text-xs font-medium">Victory</div>
+                            <div className="text-neutral-500 text-[10px]">Plus bonuses</div>
+                          </div>
+                        </div>
+                        <div className="text-right mt-1">
+                          <div className="text-base font-bold text-amber-400">+200</div>
+                          <div className="text-[10px] text-neutral-500">EXP</div>
+                        </div>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Win reward */}
-                    <div className="flex items-center justify-between bg-amber-900/30 rounded-xl p-4 border border-amber-500/20">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center">
-                          <Trophy className="h-4 w-4 text-amber-400" />
-                        </div>
-                        <div>
-                          <div className="text-white text-sm font-medium">Victory</div>
-                          <div className="text-neutral-500 text-xs">Win the game</div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-amber-400">+200</div>
-                        <div className="text-xs text-neutral-500">EXP</div>
-                      </div>
+                  {/* Special bonuses info */}
+                  <div className="bg-neutral-800/40 rounded-lg p-3 border border-neutral-700/30">
+                    <div className="text-xs text-center text-neutral-400 mb-2">
+                      <Sparkles className="h-3 w-3 inline mr-1" />
+                      Additional bonuses for:
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="text-neutral-500">• Check +3 EXP</div>
+                      <div className="text-neutral-500">• Castling +3 EXP</div>
+                      <div className="text-neutral-500">• Checkmate +10 EXP</div>
+                      <div className="text-neutral-500">• Swift win +30 EXP</div>
                     </div>
                   </div>
 
@@ -281,9 +322,11 @@ export default function HomePage() {
                   <div className="flex items-center space-x-3 mb-8">
                     <TrendingUp className="h-6 w-6 text-amber-400" />
                     <h2 className="text-2xl font-semibold text-white">Your Games</h2>
-                    <div className="bg-amber-400/10 text-amber-400 text-sm font-medium px-3 py-1 rounded-full">
-                      {yourTurnGames.length} awaiting
-                    </div>
+                    {yourTurnGames.length > 0 && (
+                      <div className="bg-amber-400/10 text-amber-400 text-sm font-medium px-3 py-1 rounded-full animate-pulse">
+                        {yourTurnGames.length} awaiting your move
+                      </div>
+                    )}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {[...yourTurnGames, ...notYourTurnGames].map((game) => {
@@ -297,10 +340,10 @@ export default function HomePage() {
                           getPlayerDisplay={getPlayerDisplay}
                           yourTurn={yourTurn}
                           footer={
-                            <>
+                            <div className="w-full space-y-2">
                               <Button
                                 asChild
-                                className="w-full bg-gradient-to-r from-neutral-800 to-neutral-700 hover:from-neutral-700 hover:to-neutral-600 border border-neutral-600/50 hover:border-neutral-500 text-white font-medium h-10 rounded-xl transition-all duration-200 group-hover:shadow-lg"
+                                className="w-full bg-gradient-to-r from-neutral-800 to-neutral-700 hover:from-neutral-700 hover:to-neutral-600 border border-neutral-600/50 hover:border-neutral-500 text-white font-medium h-8 rounded-lg transition-all duration-200 group-hover:shadow-lg text-xs"
                                 size="sm"
                               >
                                 <Link href={`/play/${game.id}`}>
@@ -313,13 +356,13 @@ export default function HomePage() {
                                     : "Continue"}
                                 </Link>
                               </Button>
-                              <div className="text-[10px] text-neutral-500 mt-1 text-right w-full">
+                              <div className="text-center">
                                 <RelativeTimeDisplay
                                   dateString={new Date(game.updatedAt).toISOString()}
-                                  className="inline"
+                                  className="text-[10px] text-neutral-500"
                                 />
                               </div>
-                            </>
+                            </div>
                           }
                         />
                       )
@@ -347,21 +390,21 @@ export default function HomePage() {
                         getStatusBadgeVariant={getStatusBadgeVariant}
                         getPlayerDisplay={getPlayerDisplay}
                         footer={
-                          <>
+                          <div className="w-full space-y-2">
                             <Button
                               asChild
-                              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium h-10 rounded-xl transition-all duration-200 group-hover:shadow-lg shadow-blue-500/25"
+                              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium h-8 rounded-lg transition-all duration-200 group-hover:shadow-lg shadow-blue-500/25 text-xs"
                               size="sm"
                             >
                               <Link href={`/play/${game.id}`}>Join Game</Link>
                             </Button>
-                            <div className="text-[10px] text-neutral-500 mt-1 text-right w-full">
+                            <div className="text-center">
                               <RelativeTimeDisplay
                                 dateString={new Date(game.updatedAt).toISOString()}
-                                className="inline"
+                                className="text-[10px] text-neutral-500"
                               />
                             </div>
-                          </>
+                          </div>
                         }
                       />
                     ))}
@@ -385,22 +428,22 @@ export default function HomePage() {
                         getStatusBadgeVariant={getStatusBadgeVariant}
                         getPlayerDisplay={getPlayerDisplay}
                         footer={
-                          <>
+                          <div className="w-full space-y-2">
                             <Button
                               asChild
                               variant="outline"
-                              className="w-full border-neutral-700/60 bg-neutral-800/40 hover:bg-neutral-700/60 text-neutral-300 hover:text-white font-medium h-10 rounded-xl transition-all duration-200"
+                              className="w-full border-neutral-700/60 bg-neutral-800/40 hover:bg-neutral-700/60 text-neutral-300 hover:text-white font-medium h-8 rounded-lg transition-all duration-200 text-xs"
                               size="sm"
                             >
                               <Link href={`/play/${game.id}`}>Spectate</Link>
                             </Button>
-                            <div className="text-[10px] text-neutral-500 mt-1 text-right w-full">
+                            <div className="text-center">
                               <RelativeTimeDisplay
                                 dateString={new Date(game.updatedAt).toISOString()}
-                                className="inline"
+                                className="text-[10px] text-neutral-500"
                               />
                             </div>
-                          </>
+                          </div>
                         }
                       />
                     ))}
@@ -416,19 +459,19 @@ export default function HomePage() {
               {Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={i}
-                  className="bg-neutral-900/40 backdrop-blur-sm border border-neutral-800/50 rounded-2xl p-6 animate-pulse"
+                  className="bg-neutral-900/40 backdrop-blur-sm border border-neutral-800/50 rounded-xl p-4 animate-pulse"
                 >
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <div className="h-4 bg-neutral-800 rounded w-16" />
-                      <div className="h-5 bg-neutral-800 rounded w-20" />
+                      <div className="h-3 bg-neutral-800 rounded w-16" />
+                      <div className="h-4 bg-neutral-800 rounded w-20" />
                     </div>
-                    <div className="h-4 bg-neutral-800 rounded w-24" />
-                    <div className="space-y-2">
+                    <div className="h-3 bg-neutral-800 rounded w-24" />
+                    <div className="bg-neutral-800/50 rounded-lg p-2 space-y-2">
                       <div className="h-3 bg-neutral-800 rounded w-full" />
                       <div className="h-3 bg-neutral-800 rounded w-3/4" />
                     </div>
-                    <div className="h-8 bg-neutral-800 rounded w-full" />
+                    <div className="h-6 bg-neutral-800 rounded w-full" />
                   </div>
                 </div>
               ))}
@@ -451,22 +494,22 @@ export default function HomePage() {
                     getStatusBadgeVariant={getStatusBadgeVariant}
                     getPlayerDisplay={getPlayerDisplay}
                     footer={
-                      <>
+                      <div className="w-full space-y-2">
                         <Button
                           asChild
                           variant="ghost"
-                          className="w-full text-neutral-400 hover:text-neutral-300 hover:bg-neutral-800/50 font-medium h-10 rounded-xl transition-all duration-200"
+                          className="w-full text-neutral-400 hover:text-neutral-300 hover:bg-neutral-800/50 font-medium h-8 rounded-lg transition-all duration-200 text-xs"
                           size="sm"
                         >
                           <Link href={`/play/${game.id}`}>Review</Link>
                         </Button>
-                        <div className="text-[10px] text-neutral-500 mt-1 text-right w-full">
+                        <div className="text-center">
                           <RelativeTimeDisplay
                             dateString={new Date(game.updatedAt).toISOString()}
-                            className="inline"
+                            className="text-[10px] text-neutral-500"
                           />
                         </div>
-                      </>
+                      </div>
                     }
                   />
                 ))}
