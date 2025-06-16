@@ -34,6 +34,19 @@ export const metadata: Metadata = {
       },
     ],
   },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Stacks Chess - Strategic Chess Mastery',
+    description: 'Engage in classic chess battles on the Stacks blockchain. Every move earns EXP, every victory builds your legacy.',
+    images: [
+      {
+        url: '/image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Stacks Chess - Strategic Chess Mastery',
+      },
+    ],
+  },
 }
 
 export default function RootLayout({
