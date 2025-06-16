@@ -154,7 +154,7 @@ export default function HomePage() {
                   </span>
                 </h1>
                 <p className="text-xl text-neutral-300 leading-relaxed max-w-2xl">
-                  Experience chess like never before on the blockchain. Every move earns EXP, every victory builds your legacy.
+                  Experience chess like never before. Every move earns EXP, every victory builds your legacy.
                 </p>
               </div>
 
