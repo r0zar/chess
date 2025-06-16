@@ -68,7 +68,7 @@ export default async function AdminDashboardPage() {
   const expRewards = await getExpRewardsLog(20)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-6xl mx-auto py-8">
       <Card className="bg-slate-800/70 border-slate-700">
         <CardHeader>
           <CardTitle className="text-slate-200">Data Source Notice</CardTitle>

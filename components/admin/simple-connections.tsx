@@ -9,24 +9,6 @@ export default function SimpleConnectionsDashboard() {
     const [data, setData] = useState<any>(null)
     const [loading, setLoading] = useState(true)
 
-    const fetchData = async () => {
-        try {
-            const response = await fetch('/api/admin/connections')
-            const connectionData = await response.json()
-            setData(connectionData)
-        } catch (err) {
-            console.error('Failed to fetch:', err)
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    useEffect(() => {
-        fetchData()
-        const interval = setInterval(fetchData, 3000)
-        return () => clearInterval(interval)
-    }, [])
-
     if (loading) return <div className="text-slate-300">Loading...</div>
     if (!data) return <div className="text-slate-300">No data</div>
 
@@ -34,10 +16,6 @@ export default function SimpleConnectionsDashboard() {
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold text-slate-100">Connection Debug</h2>
-                <Button onClick={fetchData} size="sm" className="bg-sky-600 hover:bg-sky-700 text-white">
-                    <RefreshCw className="w-4 h-4 mr-1" />
-                    Refresh
-                </Button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-4">

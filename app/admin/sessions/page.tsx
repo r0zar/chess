@@ -8,7 +8,7 @@ export default async function AdminSessionsPage() {
     const walletGroups = await aggregateSessionsByWallet()
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 max-w-6xl mx-auto py-8">
             <Card className="bg-slate-800/70 border-slate-700">
                 <CardHeader>
                     <CardTitle className="text-slate-200">Sessions & Wallets</CardTitle>

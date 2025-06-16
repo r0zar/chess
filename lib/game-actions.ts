@@ -209,7 +209,7 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
         fenAfterMove,
         timestamp: now,
     }
-    await kv.rpush(movesListKey, JSON.stringify(moveData))
+    await kv.rpush(movesListKey, [JSON.stringify(moveData)])
 
     // Calculate and issue EXP reward for the move
     let expReward: { amount: number, reason: string } | undefined;
@@ -533,7 +533,7 @@ async function issueExpReward({ stxAddress, amount, reason }: { stxAddress: stri
         console.log(`[EXP REWARD] Sent ${amount} EXP to ${stxAddress} for ${reason}. TX:`, txid);
 
         // Enhanced logging to KV
-        await kv.rpush('exp_rewards_log', JSON.stringify({
+        await kv.rpush('exp_rewards_log', [JSON.stringify({
             stxAddress,
             amount,
             reason,
@@ -543,7 +543,8 @@ async function issueExpReward({ stxAddress, amount, reason }: { stxAddress: stri
                 reason.includes('checkmate') ? 'checkmate' :
                     reason.includes('capture') ? 'capture' :
                         reason.includes('promotion') ? 'promotion' : 'move'
-        }))
+        })])
+        console.log(`[EXP REWARD] Successfully logged EXP reward to KV`)
     } catch (err) {
         console.error('[EXP REWARD] Error issuing EXP:', err);
     }

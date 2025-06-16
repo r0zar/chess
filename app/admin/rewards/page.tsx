@@ -18,7 +18,7 @@ async function getExpRewardsLog(limit = 100) {
 export default async function AdminRewardsPage() {
     const expRewards = await getExpRewardsLog(100)
     return (
-        <div className="max-w-5xl mx-auto py-8">
+        <div className="max-w-6xl mx-auto py-8">
             <Card className="bg-slate-800/70 border-slate-700">
                 <CardHeader>
                     <CardTitle className="text-slate-200">EXP Rewards Log</CardTitle>

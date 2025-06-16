@@ -53,7 +53,7 @@ export default async function AdminGamesPage({ searchParams }: { searchParams?: 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mx-auto py-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold font-crimson text-slate-100">Games Management</h1>
       </div>
