@@ -209,7 +209,7 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
         fenAfterMove,
         timestamp: now,
     }
-    await kv.rpush(movesListKey, [JSON.stringify(moveData)])
+    await kv.rpush(movesListKey, JSON.stringify(moveData))
 
     // Calculate and issue EXP reward for the move
     let expReward: { amount: number, reason: string } | undefined;
