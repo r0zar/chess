@@ -8,7 +8,7 @@ import { ChessJsAdapter } from "@/lib/chess-logic/game"
 import { cleanKVData, mapColorToIdentity, pieceSymbolToIdentity } from "@/lib/chess-logic/mappers"
 import { broadcastPartyKitEvent } from "@/lib/partykit"
 import type { GameStatus, MoveData } from "@/lib/chess-data.types"
-import { getOrCreateUser, getUserById } from "@/lib/user"
+import { getUserById } from "@/lib/user"
 import { identityToPieceSymbol } from "@/lib/chess-logic/mappers"
 import type { PlayerColorIdentity, PieceTypeIdentity } from "@/lib/chess-data.types"
 import type { PieceSymbol } from "@/lib/chess-logic/types"
@@ -214,7 +214,6 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
     // Calculate and issue EXP reward for the move
     let expReward: { amount: number, reason: string } | undefined;
     const playerUser = await getUserById(userId)
-    console.log(`[EXP REWARD] Player user: ${JSON.stringify(playerUser)}`)
     if (playerUser?.stxAddress) {
         console.log(`[EXP REWARD] Attempting to issue 10 EXP to ${playerUser.stxAddress} for move in game ${gameId}`)
         expReward = calculateMoveEXP(moveResult, isCheck, isCheckmate);

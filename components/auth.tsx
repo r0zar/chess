@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { LogIn, LogOut, Wallet, User } from "lucide-react"
 import { useGlobalEvents } from "@/components/global-events-provider"
+import { associateWalletWithUser } from '@/app/actions'
 
 export default function Auth() {
   const { toast } = useToast()
-  const { stxAddress, setStxAddress } = useGlobalEvents()
+  const { stxAddress, setStxAddress, userUuid } = useGlobalEvents()
 
   const handleConnectWallet = async () => {
     try {
@@ -17,7 +18,20 @@ export default function Auth() {
       // After successful connection, get the address from local storage
       const storage = getLocalStorage()
       const address = storage?.addresses?.stx?.[0]?.address
-      if (address) setStxAddress(address)
+      if (address) {
+        setStxAddress(address)
+        if (userUuid) {
+          try {
+            await associateWalletWithUser(userUuid, address)
+          } catch (err) {
+            toast({
+              title: "Server Error",
+              description: (err as Error).message,
+              variant: "destructive"
+            })
+          }
+        }
+      }
     } catch (error) {
       const errorMessage = (error as Error).message
       if (/denied|cancelled|canceled/i.test(errorMessage)) {

@@ -1,4 +1,5 @@
 "use server"
+
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { kv } from "@/lib/kv"
@@ -6,6 +7,7 @@ import type { GameData } from "@/lib/chess-data.types"
 import { ChessJsAdapter } from "@/lib/chess-logic/game"
 import { v4 as uuidv4 } from "uuid"
 import { cleanKVData } from "@/lib/chess-logic/mappers"
+import { getOrCreateUser } from '@/lib/user'
 
 const INITIAL_FEN = new ChessJsAdapter().getFen()
 
@@ -80,4 +82,10 @@ export async function createAndNavigateToGame() {
   // redirect() will throw NEXT_REDIRECT, which is handled by Next.js
   // and should not be caught by a general try...catch.
   redirect(`/play/${gameId}`)
+}
+
+export async function associateWalletWithUser(userUuid: string, stxAddress: string) {
+  if (!userUuid || !stxAddress) throw new Error('Missing userUuid or stxAddress')
+  const user = await getOrCreateUser(userUuid, stxAddress)
+  return user
 }
