@@ -24,7 +24,16 @@ const crimsonText = Crimson_Text({
 export const metadata: Metadata = {
   title: "Chess Game",
   description: "Play chess online",
-  generator: 'v0.dev'
+  openGraph: {
+    images: [
+      {
+        url: '/image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Stacks Chess - Strategic Chess Mastery',
+      },
+    ],
+  },
 }
 
 export default function RootLayout({

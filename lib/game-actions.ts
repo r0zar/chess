@@ -13,9 +13,13 @@ import { identityToPieceSymbol } from "@/lib/chess-logic/mappers"
 import type { PlayerColorIdentity, PieceTypeIdentity } from "@/lib/chess-data.types"
 import type { PieceSymbol } from "@/lib/chess-logic/types"
 import { makeContractCall, broadcastTransaction, standardPrincipalCV, uintCV } from '@stacks/transactions';
+import { STACKS_TESTNET, STACKS_MAINNET } from '@stacks/network';
 
 const CHARISMA_RULEBOOK_CONTRACT = process.env.CHARISMA_RULEBOOK_CONTRACT!;
 const CHARISMA_HOT_WALLET_PRIVATE_KEY = process.env.CHARISMA_HOT_WALLET_PRIVATE_KEY!;
+const STACKS_NETWORK = process.env.STACKS_NETWORK === 'mainnet'
+    ? STACKS_MAINNET
+    : STACKS_TESTNET;
 
 export async function makeServerMoveApi({ gameId, from, to, promotion, userId }: {
     gameId: string
@@ -328,9 +332,17 @@ async function issueExpReward({ stxAddress, amount, reason }: { stxAddress: stri
             senderKey: CHARISMA_HOT_WALLET_PRIVATE_KEY,
         };
         const tx = await makeContractCall(txOptions);
-        const result = await broadcastTransaction({ transaction: tx });
-        console.log(result)
-        console.log(`[EXP REWARD] Sent ${amount} EXP to ${stxAddress} for ${reason}. TX:`, result.txid || result);
+        const result = await broadcastTransaction({ transaction: tx, network: STACKS_NETWORK });
+        const txid = result.txid || result;
+        console.log(`[EXP REWARD] Sent ${amount} EXP to ${stxAddress} for ${reason}. TX:`, txid);
+        // Log to KV
+        await kv.rpush('exp_rewards_log', JSON.stringify({
+            stxAddress,
+            amount,
+            reason,
+            txid,
+            timestamp: Date.now()
+        }))
     } catch (err) {
         console.error('[EXP REWARD] Error issuing EXP:', err);
     }
