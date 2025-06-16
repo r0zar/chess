@@ -528,7 +528,6 @@ async function issueExpReward({ stxAddress, amount, reason }: { stxAddress: stri
 
         const tx = await makeContractCall(txOptions);
         const result = await broadcastTransaction({ transaction: tx });
-        console.log(result)
         const txid = result.txid || result;
 
         console.log(`[EXP REWARD] Sent ${amount} EXP to ${stxAddress} for ${reason}. TX:`, txid);
