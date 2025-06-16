@@ -13,11 +13,9 @@ import { identityToPieceSymbol } from "@/lib/chess-logic/mappers"
 import type { PlayerColorIdentity, PieceTypeIdentity } from "@/lib/chess-data.types"
 import type { PieceSymbol } from "@/lib/chess-logic/types"
 import { makeContractCall, broadcastTransaction, standardPrincipalCV, uintCV } from '@stacks/transactions';
-import { STACKS_MAINNET } from '@stacks/network';
 
 const CHARISMA_RULEBOOK_CONTRACT = process.env.CHARISMA_RULEBOOK_CONTRACT!;
 const CHARISMA_HOT_WALLET_PRIVATE_KEY = process.env.CHARISMA_HOT_WALLET_PRIVATE_KEY!;
-const STACKS_NETWORK = STACKS_MAINNET
 
 // Enhanced EXP calculation based on move type
 function calculateMoveEXP(moveResult: any, isCheck: boolean, isCheckmate: boolean): { amount: number, reason: string } {
@@ -524,7 +522,7 @@ async function issueExpReward({ stxAddress, amount, reason }: { stxAddress: stri
         };
 
         const tx = await makeContractCall(txOptions);
-        const result = await broadcastTransaction({ transaction: tx, network: STACKS_NETWORK });
+        const result = await broadcastTransaction({ transaction: tx });
         console.log(result)
         const txid = result.txid || result;
 
