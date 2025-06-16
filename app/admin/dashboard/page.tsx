@@ -1,7 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { kv } from "@/lib/kv"
 import { Activity, Users, Gamepad2, BarChart3 } from "lucide-react"
-import SimpleConnectionsDashboard from "@/components/admin/simple-connections"
 
 async function getDashboardStats() {
   // Fetch all stats in parallel for efficiency
@@ -145,11 +144,6 @@ export default async function AdminDashboardPage() {
             <p className="text-green-400 font-semibold">All systems operational.</p>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Real-time Connection Debug Panel */}
-      <div className="mt-8">
-        <SimpleConnectionsDashboard />
       </div>
 
       {/* EXP Rewards Log */}
