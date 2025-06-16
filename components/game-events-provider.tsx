@@ -105,6 +105,14 @@ export default function GameEventsProvider({ children, gameId }: GameEventsProvi
                     duration: 4000
                 })
             }
+            // Show EXP reward toast if this user made the move and has a wallet
+            if (userUuid && stxAddress && event.data.playerId === userUuid) {
+                toast({
+                    title: '✨ 10 EXP Earned!',
+                    description: 'You received 10 EXP for making a move.',
+                    duration: 5000
+                })
+            }
         }
         syncGameState(currentGameId, userUuid, false)
     }

@@ -41,6 +41,8 @@
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
     "@stacks/connect": "latest",
+    "@stacks/network": "^7.0.2",
+    "@stacks/transactions": "^7.1.0",
     "@vercel/kv": "^3.0.0",
     "autoprefixer": "^10.4.20",
     "chess.js": "latest",

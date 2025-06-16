@@ -144,8 +144,9 @@ export default function HomePage() {
             <span className="block text-sky-400">Challenge Your Mind.</span>
           </h2>
           <p className="max-w-2xl mx-auto text-lg sm:text-xl text-slate-300 mb-10">
-            Engage in classic chess battles on the Stacks blockchain. Connect your wallet to create games, track your
-            record, or play as a guest.
+            Engage in classic chess battles on the Stacks blockchain.<br />
+            <span className="font-semibold text-sky-300">Earn 10 EXP for every move and 200 EXP for every win!</span><br />
+            Connect your wallet to receive EXP rewards, or play as a guest for fun.
           </p>
           <div className="flex justify-center gap-4 flex-wrap">
             <CreateGameButton />

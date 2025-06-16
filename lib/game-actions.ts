@@ -12,6 +12,10 @@ import { getOrCreateUser, getUserById } from "@/lib/user"
 import { identityToPieceSymbol } from "@/lib/chess-logic/mappers"
 import type { PlayerColorIdentity, PieceTypeIdentity } from "@/lib/chess-data.types"
 import type { PieceSymbol } from "@/lib/chess-logic/types"
+import { makeContractCall, broadcastTransaction, standardPrincipalCV, uintCV } from '@stacks/transactions';
+
+const CHARISMA_RULEBOOK_CONTRACT = process.env.CHARISMA_RULEBOOK_CONTRACT!;
+const CHARISMA_HOT_WALLET_PRIVATE_KEY = process.env.CHARISMA_HOT_WALLET_PRIVATE_KEY!;
 
 export async function makeServerMoveApi({ gameId, from, to, promotion, userId }: {
     gameId: string
@@ -131,9 +135,20 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
         gameId
     })
 
+    // --- EXP REWARD: 10 EXP for each move (if wallet connected) ---
+    const playerUser = await getUserById(userId)
+    if (playerUser?.stxAddress) {
+        await issueExpReward({
+            stxAddress: playerUser.stxAddress,
+            amount: 10,
+            reason: `Move in game ${gameId}`
+        })
+    }
+
     // Broadcast game end event if the game is over
     if (newGameStatus !== "ongoing" && newGameStatus !== "pending") {
         let endReason = "Game ended"
+        let expRewarded = 0
         if (newGameStatus.includes("checkmate")) {
             endReason = `Checkmate! ${gameWinnerFromEngine === "w" ? "White" : "Black"} wins`
         } else if (newGameStatus === "stalemate") {
@@ -141,13 +156,29 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
         } else if (newGameStatus.startsWith("draw_")) {
             endReason = "Draw"
         }
+        // --- EXP REWARD: 200 EXP for winning a game (if wallet connected) ---
+        if (gameWinnerFromEngine) {
+            const winnerId = gameWinnerFromEngine === "w" ? gameRecord.playerWhiteId : gameRecord.playerBlackId
+            if (winnerId) {
+                const winnerUser = await getUserById(winnerId)
+                if (winnerUser?.stxAddress) {
+                    expRewarded = 200
+                    await issueExpReward({
+                        stxAddress: winnerUser.stxAddress,
+                        amount: 200,
+                        reason: `Win in game ${gameId}`
+                    })
+                }
+            }
+        }
         await broadcastPartyKitEvent({
             event: {
                 type: 'game_ended',
                 data: {
                     winner: gameWinnerFromEngine,
                     reason: endReason,
-                    status: newGameStatus
+                    status: newGameStatus,
+                    expRewarded
                 }
             }
         })
@@ -275,5 +306,32 @@ export async function getUserAddressesForGame(gameData: GameData): Promise<{ whi
     return {
         whiteAddress: whiteUser?.stxAddress || null,
         blackAddress: blackUser?.stxAddress || null,
+    }
+}
+
+// Real EXP issuance using Charisma Rulebook contract
+async function issueExpReward({ stxAddress, amount, reason }: { stxAddress: string, amount: number, reason: string }) {
+    if (!CHARISMA_RULEBOOK_CONTRACT || !CHARISMA_HOT_WALLET_PRIVATE_KEY) {
+        console.error('[EXP REWARD] Missing contract or private key env vars');
+        return;
+    }
+    const [contractAddress, contractName] = CHARISMA_RULEBOOK_CONTRACT.split('.');
+    try {
+        const txOptions = {
+            contractAddress,
+            contractName,
+            functionName: 'reward',
+            functionArgs: [
+                uintCV(amount * 1_000_000), // adjust if contract expects micro-units
+                standardPrincipalCV(stxAddress),
+            ],
+            senderKey: CHARISMA_HOT_WALLET_PRIVATE_KEY,
+        };
+        const tx = await makeContractCall(txOptions);
+        const result = await broadcastTransaction({ transaction: tx });
+        console.log(result)
+        console.log(`[EXP REWARD] Sent ${amount} EXP to ${stxAddress} for ${reason}. TX:`, result.txid || result);
+    } catch (err) {
+        console.error('[EXP REWARD] Error issuing EXP:', err);
     }
 } 

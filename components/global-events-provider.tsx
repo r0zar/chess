@@ -84,9 +84,13 @@ export default function GlobalEventsProvider({ children }: GlobalEventsProviderP
             const winner = event.data.winner ? `Winner: ${event.data.winner}` : 'Draw';
             const reason = event.data.reason ? `Reason: ${event.data.reason}` : '';
             const status = event.data.status ? `Status: ${event.data.status}` : '';
+            let expLine = '';
+            if (typeof event.data.expRewarded === 'number' && event.data.expRewarded > 0) {
+                expLine = `\n✨ ${event.data.expRewarded} EXP awarded to the winner!`;
+            }
             toast({
                 title: '🏁 Game Ended',
-                description: `${winner}\n${reason}\n${status}`.trim(),
+                description: `${winner}\n${reason}\n${status}${expLine}`.trim(),
                 duration: 6000
             })
         }

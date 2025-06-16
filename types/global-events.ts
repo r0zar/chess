@@ -4,4 +4,4 @@ export type GlobalEvent =
     | { type: 'move_activity'; data: { gameId: string; userId: string; userAddress?: string; playerColor: 'w' | 'b'; move: string } }
     | { type: 'challenge_request'; data: { userId: string; userAddress?: string; message: string } }
     | { type: 'connection_stats'; data: any }
-    | { type: 'game_ended'; data: { winner?: string; reason?: string; status?: string } } 
+    | { type: 'game_ended'; data: { winner?: string; reason?: string; status?: string; expRewarded?: number } } 

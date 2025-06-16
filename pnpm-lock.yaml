@@ -95,6 +95,12 @@ importers:
       '@stacks/connect':
         specifier: latest
         version: 8.1.9
+      '@stacks/network':
+        specifier: ^7.0.2
+        version: 7.0.2
+      '@stacks/transactions':
+        specifier: ^7.1.0
+        version: 7.1.0
       '@vercel/kv':
         specifier: ^3.0.0
         version: 3.0.0
@@ -3697,7 +3703,7 @@ snapshots:
 
   c32check@2.0.0:
     dependencies:
-      '@noble/hashes': 1.1.5
+      '@noble/hashes': 1.8.0
       base-x: 4.0.1
 
   camelcase-css@2.0.1: {}
