@@ -4,9 +4,11 @@ import React, { useState, useRef, useEffect } from "react"
 import dynamic from "next/dynamic"
 import Auth from "@/components/auth"
 import Link from "next/link"
-import { ArrowLeft, Crown } from "lucide-react"
+import { ArrowLeft, Crown, Sparkles, RefreshCw } from "lucide-react"
 import GameSidebar from "@/components/game/game-sidebar"
 import { useGameEvents } from "@/components/game-events-provider"
+import { useGlobalEvents } from "@/components/global-events-provider"
+import { principalCV, fetchCallReadOnlyFunction, ClarityValue } from "@stacks/transactions"
 
 const Chessboard = dynamic(() => import("react-chessboard").then((mod) => mod.Chessboard), {
   ssr: false,
@@ -15,10 +17,106 @@ const Chessboard = dynamic(() => import("react-chessboard").then((mod) => mod.Ch
   ),
 })
 
+// EXP Balance Display Component
+function ExpBalanceDisplay() {
+  const [expBalance, setExpBalance] = useState<number | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { stxAddress } = useGlobalEvents()
+
+  // Load cached balance from localStorage on mount or stxAddress change
+  useEffect(() => {
+    if (stxAddress && typeof window !== 'undefined') {
+      const cached = localStorage.getItem(`exp-balance-${stxAddress}`)
+      if (cached) {
+        setExpBalance(Number(cached))
+      }
+    }
+  }, [stxAddress])
+
+  const fetchExpBalance = async () => {
+    if (!stxAddress) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      // Call Stacks API to get contract balance
+      const response: any = await fetchCallReadOnlyFunction({
+        contractName: "experience",
+        contractAddress: "SP2ZNGJ85ENDY6QRHQ5P2D4FXKGZWCKTB2T0Z55KS",
+        functionName: "get-balance",
+        functionArgs: [principalCV(stxAddress)],
+        senderAddress: stxAddress,
+      })
+
+      const data = Number(response.value.value) / 1_000_000
+
+      if (typeof data === 'number') {
+        setExpBalance(data)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`exp-balance-${stxAddress}`, String(data))
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching EXP balance:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (stxAddress) {
+      fetchExpBalance()
+      // Refresh balance every 30 seconds
+      const interval = setInterval(fetchExpBalance, 30000)
+      return () => clearInterval(interval)
+    }
+  }, [stxAddress])
+
+  return (
+    <div className="flex items-center gap-2 bg-neutral-900/60 backdrop-blur-sm border border-neutral-800/50 rounded-xl px-3 py-2 group hover:border-amber-400/30 transition-colors">
+      <div className="relative">
+        <div className="text-lg animate-gentle-bounce">✨</div>
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <RefreshCw className="h-3 w-3 text-amber-400 animate-spin" />
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-col">
+        <div className="text-xs text-neutral-500 leading-none">EXP</div>
+        <div className="text-sm font-semibold text-amber-400 leading-none">
+          {error ? (
+            <span className="text-red-400 text-xs cursor-pointer" onClick={fetchExpBalance}>
+              {error}
+            </span>
+          ) : expBalance !== null ? (
+            <span className="tabular-nums">
+              {expBalance.toLocaleString()}
+            </span>
+          ) : (
+            <div className="w-8 h-3 bg-neutral-700/50 rounded animate-pulse" />
+          )}
+        </div>
+      </div>
+
+      {!isLoading && (
+        <button
+          onClick={fetchExpBalance}
+          className="opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+          title="Refresh EXP balance"
+        >
+          <RefreshCw className="h-3 w-3 text-neutral-500 hover:text-amber-400 transition-colors" />
+        </button>
+      )}
+    </div>
+  )
+}
+
 export default function GameBoardClient({ gameId }: { gameId: string }) {
   const {
-    assignedBlackId,
-    assignedWhiteId,
     connectionState,
     chessGame,
     currentFen,
@@ -70,11 +168,9 @@ export default function GameBoardClient({ gameId }: { gameId: string }) {
               <span className="font-medium">Back to Lobby</span>
             </Link>
 
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Crown className="h-5 w-5 text-amber-400" />
-                <span className="text-lg font-semibold text-white">Stacks Chess</span>
-              </div>
+            <div className="flex items-center gap-4">
+              <ExpBalanceDisplay />
+
               <Auth />
             </div>
           </div>
