@@ -12,7 +12,7 @@ import { getUserById } from "@/lib/user"
 import { identityToPieceSymbol } from "@/lib/chess-logic/mappers"
 import type { PlayerColorIdentity, PieceTypeIdentity } from "@/lib/chess-data.types"
 import type { PieceSymbol } from "@/lib/chess-logic/types"
-import { makeContractCall, broadcastTransaction, standardPrincipalCV, uintCV } from '@stacks/transactions';
+import { makeContractCall, broadcastTransaction, standardPrincipalCV, uintCV, fetchNonce, getAddressFromPrivateKey } from '@stacks/transactions';
 
 const CHARISMA_RULEBOOK_CONTRACT = process.env.CHARISMA_RULEBOOK_CONTRACT!;
 const CHARISMA_HOT_WALLET_PRIVATE_KEY = process.env.CHARISMA_HOT_WALLET_PRIVATE_KEY!;
@@ -523,10 +523,12 @@ async function issueExpReward({ stxAddress, amount, reason }: { stxAddress: stri
                 standardPrincipalCV(stxAddress),
             ],
             senderKey: CHARISMA_HOT_WALLET_PRIVATE_KEY,
+            nonce: await fetchNonce({ address: getAddressFromPrivateKey(CHARISMA_HOT_WALLET_PRIVATE_KEY) })
         };
 
         const tx = await makeContractCall(txOptions);
         const result = await broadcastTransaction({ transaction: tx });
+        console.log(result)
         const txid = result.txid || result;
 
         console.log(`[EXP REWARD] Sent ${amount} EXP to ${stxAddress} for ${reason}. TX:`, txid);
