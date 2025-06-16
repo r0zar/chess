@@ -6,6 +6,52 @@
   .text-balance {
     text-wrap: balance;
   }
+  
+  /* Animation utilities */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  .animate-float-delayed {
+    animation: float 3s ease-in-out infinite;
+    animation-delay: -1.5s;
+  }
+  
+  .animate-levitate {
+    animation: levitate 4s ease-in-out infinite;
+  }
+  
+  .animate-levitate-delayed {
+    animation: levitate 4s ease-in-out infinite;
+    animation-delay: -2s;
+  }
+  
+  .animate-drift {
+    animation: drift 5s ease-in-out infinite;
+  }
+  
+  .animate-drift-delayed {
+    animation: drift 5s ease-in-out infinite;
+    animation-delay: -2.5s;
+  }
+  
+  .animate-gentle-bounce {
+    animation: gentle-bounce 2.5s ease-in-out infinite;
+  }
+  
+  .animate-gentle-bounce-delayed {
+    animation: gentle-bounce 2.5s ease-in-out infinite;
+    animation-delay: -1.25s;
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient 3s ease infinite;
+  }
 }
 
 @layer base {
@@ -35,6 +81,12 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
+    
+    /* Chess app specific colors */
+    --chess-gold: 45 100% 51%;
+    --chess-gold-dark: 45 100% 35%;
+    --chess-exp: 51 100% 50%;
+    --chess-exp-glow: 51 100% 80%;
     
     /* Sidebar colors */
     --sidebar-background: 0 0% 98%;
@@ -73,6 +125,12 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
     
+    /* Chess app specific colors for dark mode */
+    --chess-gold: 45 100% 60%;
+    --chess-gold-dark: 45 100% 45%;
+    --chess-exp: 51 100% 60%;
+    --chess-exp-glow: 51 100% 90%;
+    
     /* Sidebar colors for dark mode */
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
@@ -92,4 +150,69 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Custom keyframe animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes levitate {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+@keyframes gentle-bounce {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes drift {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+  }
+  33% {
+    transform: translateY(-10px) translateX(3px);
+  }
+  66% {
+    transform: translateY(-4px) translateX(-2px);
+  }
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Glass morphism utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }

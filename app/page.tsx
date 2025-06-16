@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card" // Removed CardDescription for now
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import type { GameData } from "@/lib/chess-data.types"
 import RelativeTimeDisplay from "@/components/relative-time-display"
@@ -11,7 +11,8 @@ import ChallengeRequestButton from "@/components/lobby/challenge-request-button"
 import Auth from "@/components/auth"
 import { useState, useEffect, useCallback } from "react"
 import { useToast } from "@/hooks/use-toast"
-import { Crown, CircleUser } from "lucide-react"
+import { Crown, CircleUser, Trophy, Zap, Users, TrendingUp } from "lucide-react"
+import GameCard from "@/components/lobby/game-card"
 
 async function fetchGamesListClientSide(): Promise<GameData[]> {
   try {
@@ -27,12 +28,11 @@ async function fetchGamesListClientSide(): Promise<GameData[]> {
   }
 }
 
-// Helper to check if it's the user's turn
 function isUsersTurn(game: GameData, userUuid: string | null): boolean {
   if (!userUuid || !game.currentFen) return false;
   if (game.status !== "ongoing") return false;
   const fenParts = game.currentFen.split(' ');
-  const fenTurn = fenParts[1]; // 'w' or 'b'
+  const fenTurn = fenParts[1];
   let userColor: 'w' | 'b' | null = null;
   if (game.playerWhiteId === userUuid) userColor = 'w';
   if (game.playerBlackId === userUuid) userColor = 'b';
@@ -44,15 +44,12 @@ export default function HomePage() {
   const [isLoadingGames, setIsLoadingGames] = useState(true)
   const { toast } = useToast()
 
-  // Use localStorage UUID for user identification
   const userUuid = typeof window !== 'undefined' ? localStorage.getItem('user-uuid') : null;
 
-  // Add ended games section
   const endedGames = games.filter(
     (game) => game.status !== 'pending' && game.status !== 'ongoing'
   ).sort((a, b) => b.updatedAt - a.updatedAt)
 
-  // Only include non-ended games in the other sections
   const nonEndedGames = games.filter(
     (game) => game.status === 'pending' || game.status === 'ongoing'
   )
@@ -87,12 +84,10 @@ export default function HomePage() {
     loadGames()
   }, [loadGames])
 
-  // Debug: log when component mounts
   useEffect(() => {
     console.log('[HomePage] Component mounted');
   }, []);
 
-  // Debug: log when games are loaded (and the number of games)
   useEffect(() => {
     console.log('[HomePage] games loaded:', games.length, 'games');
   }, [games]);
@@ -110,360 +105,384 @@ export default function HomePage() {
     if (id) {
       return `${id.substring(0, 6)}...${id.substring(id.length - 4)}`
     }
-    return "Open Slot"
+    return "Open"
   }
 
-  // For 'Your Games', sort so games where it's your turn are first, both sorted by most recent
   const yourTurnGames = yourGames.filter((game) => isUsersTurn(game, userUuid)).sort((a, b) => b.updatedAt - a.updatedAt)
   const notYourTurnGames = yourGames.filter((game) => !isUsersTurn(game, userUuid)).sort((a, b) => b.updatedAt - a.updatedAt)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50">
-      {/* Header / Navigation */}
-      <header className="py-4 px-4 sm:px-6 lg:px-8 sticky top-0 z-50 bg-slate-900/80 backdrop-blur-md">
-        <div className="container mx-auto flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2">
-            <Crown className="h-6 w-6 text-sky-400 mt-0.5 mb-1.5" />
-            <h1 className="text-2xl font-bold tracking-tight text-slate-100 font-crimson">Chess</h1>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/admin/dashboard" className="text-sm text-slate-300 hover:text-sky-400 transition-colors">
-              Admin
+    <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950">
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-50 bg-neutral-950/80 backdrop-blur-xl border-b border-neutral-800/50">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <Link href="/" className="flex items-center space-x-3">
+              <div className="relative">
+                <Crown className="h-7 w-7 text-amber-400" />
+                <div className="absolute -inset-1 bg-amber-400/20 rounded-full blur-sm" />
+              </div>
+              <span className="text-xl font-semibold text-white tracking-tight">Stacks Chess</span>
             </Link>
-            <Auth />
+            <div className="flex items-center space-x-6">
+              <Link
+                href="/admin/dashboard"
+                className="text-sm font-medium text-neutral-400 hover:text-white transition-colors duration-200"
+              >
+                Admin
+              </Link>
+              <Auth />
+            </div>
           </div>
         </div>
-      </header>
+      </nav>
 
-      {/* Main Content Area */}
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-        {/* Hero Section */}
-        <section className="text-center py-12 sm:py-16 md:py-20 rounded-xl bg-slate-800/50 shadow-xl mb-12">
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-6 tracking-tight font-playfair">
-            <span className="block">Welcome to Stacks Chess</span>
-            <span className="block text-sky-400">Challenge Your Mind.</span>
-          </h2>
-          <p className="max-w-2xl mx-auto text-lg sm:text-xl text-slate-300 mb-10">
-            Engage in classic chess battles on the Stacks blockchain.<br />
-            <span className="font-semibold text-sky-300">Earn 10 EXP for every move and 200 EXP for every win!</span><br />
-            Connect your wallet to receive EXP rewards, or play as a guest for fun.
-          </p>
-          <div className="flex justify-center gap-4 flex-wrap">
-            <CreateGameButton />
-            <ChallengeRequestButton />
+      {/* Hero Section */}
+      <section className="relative pt-24 pb-20 px-6 lg:px-8 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950" />
+        <div className="absolute top-1/2 left-1/4 w-96 h-96 bg-amber-400/3 rounded-full blur-3xl transform -translate-y-1/2" />
+        <div className="absolute top-1/3 right-1/4 w-80 h-80 bg-blue-400/3 rounded-full blur-3xl" />
+
+        {/* Minimal floating particles */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-20 left-20 text-2xl animate-levitate opacity-60">✨</div>
+          <div className="absolute top-1/3 right-20 text-2xl animate-drift opacity-40">⭐</div>
+          <div className="absolute bottom-32 left-1/3 text-2xl animate-levitate-delayed opacity-50">💫</div>
+          <div className="absolute bottom-20 right-1/4 text-2xl animate-drift-delayed opacity-30">✨</div>
+        </div>
+
+        <div className="relative max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-16 items-start">
+            {/* Left side - Hero content (2/3 width) */}
+            <div className="lg:col-span-2 space-y-10">
+              <div className="space-y-6">
+                <h1 className="text-5xl md:text-6xl xl:text-7xl font-bold text-white tracking-tight leading-[1.1]">
+                  Strategic
+                  <span className="block bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 bg-clip-text text-transparent">
+                    Chess Mastery
+                  </span>
+                </h1>
+                <p className="text-xl text-neutral-300 leading-relaxed max-w-2xl">
+                  Experience chess like never before on the blockchain. Every move matters, every victory counts.
+                </p>
+              </div>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <CreateGameButton />
+                <ChallengeRequestButton />
+              </div>
+
+              {/* Stats row */}
+              <div className="grid grid-cols-3 gap-6 max-w-lg">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white">{games.length}</div>
+                  <div className="text-sm text-neutral-400 mt-1">Active Games</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-400">{yourTurnGames.length}</div>
+                  <div className="text-sm text-neutral-400 mt-1">Your Turn</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-amber-400">{availableGames.length}</div>
+                  <div className="text-sm text-neutral-400 mt-1">Available</div>
+                </div>
+              </div>
+
+              {/* User Status */}
+              {userUuid && (
+                <div className="inline-flex items-center space-x-2 bg-neutral-800/40 backdrop-blur-sm border border-neutral-700/50 rounded-full px-4 py-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  <span className="text-sm text-neutral-300">Connected</span>
+                  <code className="text-sm font-mono text-amber-400">
+                    {`${userUuid.substring(0, 6)}...${userUuid.substring(userUuid.length - 4)}`}
+                  </code>
+                </div>
+              )}
+            </div>
+
+            {/* Right side - EXP Rewards (1/3 width) */}
+            <div className="relative lg:col-span-1">
+              <div className="bg-neutral-900/60 backdrop-blur-xl border border-neutral-800/60 rounded-2xl p-6 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-400/5 via-transparent to-amber-600/5" />
+
+                <div className="relative z-10 space-y-5">
+                  <div className="text-center">
+                    <div className="flex items-center justify-center space-x-2 mb-2">
+                      <div className="text-xl animate-gentle-bounce">✨</div>
+                      <h3 className="text-lg font-semibold bg-gradient-to-r from-amber-400 to-yellow-300 bg-clip-text text-transparent">
+                        EXP Rewards
+                      </h3>
+                    </div>
+                    <p className="text-neutral-400 text-sm">Level up with every move</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* Move reward */}
+                    <div className="flex items-center justify-between bg-neutral-800/60 rounded-xl p-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                          <Zap className="h-4 w-4 text-blue-400" />
+                        </div>
+                        <div>
+                          <div className="text-white text-sm font-medium">Every Move</div>
+                          <div className="text-neutral-500 text-xs">Strategic play</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-blue-400">+10</div>
+                        <div className="text-xs text-neutral-500">EXP</div>
+                      </div>
+                    </div>
+
+                    {/* Win reward */}
+                    <div className="flex items-center justify-between bg-amber-900/30 rounded-xl p-4 border border-amber-500/20">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                          <Trophy className="h-4 w-4 text-amber-400" />
+                        </div>
+                        <div>
+                          <div className="text-white text-sm font-medium">Victory</div>
+                          <div className="text-neutral-500 text-xs">Win the game</div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-amber-400">+200</div>
+                        <div className="text-xs text-neutral-500">EXP</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-neutral-800/40 rounded-lg p-3 space-y-1">
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-1.5 h-1.5 bg-green-400 rounded-full" />
+                      <span className="text-neutral-300">Connect wallet for rewards</span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-xs">
+                      <div className="w-1.5 h-1.5 bg-neutral-500 rounded-full" />
+                      <span className="text-neutral-400">Play as guest for fun</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          {userUuid && (
-            <p className="mt-6 text-sm text-slate-400">
-              Connected as:{" "}
-              <span className="font-mono text-sky-300">
-                {userUuid ? `${userUuid.substring(0, 6)}...${userUuid.substring(userUuid.length - 4)}` : "Guest"}
-              </span>
-            </p>
-          )}
-        </section>
+        </div>
+      </section>
 
-        {/* Games List Section */}
-        <section>
-          {!isLoadingGames && userUuid !== undefined && yourGames.length === 0 && availableGames.length === 0 && otherGames.length === 0 && (
-            (() => { console.log('[HomePage] Rendering No Games Found card'); return null; })()
-          )}
-
-          {!isLoadingGames && userUuid !== undefined && (
-            (() => { console.log('[HomePage] Rendering games sections', { yourGames: yourGames.length, availableGames: availableGames.length, otherGames: otherGames.length }); return null; })()
-          )}
-
+      {/* Games Section */}
+      <section className="px-6 lg:px-8 pb-20">
+        <div className="max-w-7xl mx-auto">
           {!isLoadingGames && userUuid !== undefined && (
             <>
-              {/* Section: Your Games */}
+              {/* Your Games */}
               {yourGames.length > 0 && (
-                <div className="mb-10">
-                  <h4 className="text-xl font-semibold mb-3 font-crimson">Your Games</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="my-16">
+                  <div className="flex items-center space-x-3 mb-8">
+                    <TrendingUp className="h-6 w-6 text-amber-400" />
+                    <h2 className="text-2xl font-semibold text-white">Your Games</h2>
+                    <div className="bg-amber-400/10 text-amber-400 text-sm font-medium px-3 py-1 rounded-full">
+                      {yourTurnGames.length} awaiting
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {[...yourTurnGames, ...notYourTurnGames].map((game) => {
                       const yourTurn = isUsersTurn(game, userUuid);
                       return (
-                        <Card
+                        <GameCard
                           key={game.id}
-                          className="bg-slate-800/70 border-slate-700 shadow-md hover:border-sky-500/70 transition-all duration-200 flex flex-col"
-                        >
-                          <CardHeader className="p-3">
-                            <div className="flex justify-between items-start gap-2">
-                              {yourTurn && (
-                                <span className="flex items-center gap-1 text-green-400 font-semibold text-xs">
-                                  <span className="inline-block w-2 h-2 rounded-full bg-green-400" />
-                                  Your move
-                                </span>
-                              )}
-                              <CardTitle className="text-xs font-mono text-sky-400 leading-tight flex items-center gap-2">
-                                {game.id.substring(0, 8)}
-                              </CardTitle>
-                              <Badge
-                                variant={getStatusBadgeVariant(game.status)}
-                                className="shrink-0"
+                          game={game}
+                          userUuid={userUuid}
+                          getStatusBadgeVariant={getStatusBadgeVariant}
+                          getPlayerDisplay={getPlayerDisplay}
+                          yourTurn={yourTurn}
+                          footer={
+                            <>
+                              <Button
+                                asChild
+                                className="w-full bg-gradient-to-r from-neutral-800 to-neutral-700 hover:from-neutral-700 hover:to-neutral-600 border border-neutral-600/50 hover:border-neutral-500 text-white font-medium h-10 rounded-xl transition-all duration-200 group-hover:shadow-lg"
+                                size="sm"
                               >
-                                {game.status.replace(/_/g, " ")}
-                              </Badge>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="p-3 pt-0 space-y-1.5 text-xs flex-grow">
-                            <div className="flex items-center justify-between">
-                              <span className="flex items-center text-slate-400">
-                                <CircleUser className="w-3 h-3 mr-1 text-slate-900 bg-white rounded-full p-0.5" />
-                                White:
-                              </span>
-                              <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
-                                {getPlayerDisplay(game.playerWhiteId)}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="flex items-center text-slate-400">
-                                <CircleUser className="w-3 h-3 mr-1 text-white bg-slate-900 rounded-full p-0.5" />
-                                Black:
-                              </span>
-                              <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
-                                {getPlayerDisplay(game.playerBlackId)}
-                              </span>
-                            </div>
-                          </CardContent>
-                          <CardFooter className="p-3 pt-2 flex flex-col items-stretch space-y-1.5">
-                            <Button asChild size="sm" className="w-full">
-                              <Link href={`/play/${game.id}`}>
-                                {game.status === "pending" &&
-                                  (!game.playerWhiteId ||
-                                    !game.playerBlackId ||
-                                    (userUuid &&
-                                      (game.playerWhiteId === userUuid || game.playerBlackId === userUuid)))
-                                  ? "Join Game"
-                                  : "View Game"}
-                              </Link>
-                            </Button>
-                            <div className="text-center text-slate-500 text-[10px] pt-0.5">
-                              <RelativeTimeDisplay dateString={new Date(game.updatedAt).toISOString()} />
-                            </div>
-                          </CardFooter>
-                        </Card>
+                                <Link href={`/play/${game.id}`}>
+                                  {game.status === "pending" &&
+                                    (!game.playerWhiteId ||
+                                      !game.playerBlackId ||
+                                      (userUuid &&
+                                        (game.playerWhiteId === userUuid || game.playerBlackId === userUuid)))
+                                    ? "Join Game"
+                                    : "Continue"}
+                                </Link>
+                              </Button>
+                              <div className="text-[10px] text-neutral-500 mt-1 text-right w-full">
+                                <RelativeTimeDisplay
+                                  dateString={new Date(game.updatedAt).toISOString()}
+                                  className="inline"
+                                />
+                              </div>
+                            </>
+                          }
+                        />
                       )
                     })}
                   </div>
                 </div>
               )}
 
-              {/* Section: Available Games */}
+              {/* Available Games */}
               {availableGames.length > 0 && (
-                <div className="mb-10">
-                  <h4 className="text-xl font-semibold mb-3 font-crimson">Available Games</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="mb-16">
+                  <div className="flex items-center space-x-3 mb-8">
+                    <Users className="h-6 w-6 text-blue-400" />
+                    <h2 className="text-2xl font-semibold text-white">Open Games</h2>
+                    <div className="bg-blue-400/10 text-blue-400 text-sm font-medium px-3 py-1 rounded-full">
+                      {availableGames.length} available
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {availableGames.map((game) => (
-                      <Card
+                      <GameCard
                         key={game.id}
-                        className="bg-slate-800/70 border-slate-700 shadow-md hover:border-sky-500/70 transition-all duration-200 flex flex-col"
-                      >
-                        <CardHeader className="p-3">
-                          <div className="flex justify-between items-start gap-2">
-                            <CardTitle className="text-xs font-mono text-sky-400 leading-tight">
-                              {game.id.substring(0, 8)}
-                            </CardTitle>
-                            <Badge
-                              variant={getStatusBadgeVariant(game.status)}
-                              className="shrink-0"
+                        game={game}
+                        userUuid={userUuid}
+                        getStatusBadgeVariant={getStatusBadgeVariant}
+                        getPlayerDisplay={getPlayerDisplay}
+                        footer={
+                          <>
+                            <Button
+                              asChild
+                              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium h-10 rounded-xl transition-all duration-200 group-hover:shadow-lg shadow-blue-500/25"
+                              size="sm"
                             >
-                              {game.status.replace(/_/g, " ")}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="p-3 pt-0 space-y-1.5 text-xs flex-grow">
-                          <div className="flex items-center justify-between">
-                            <span className="flex items-center text-slate-400">
-                              <CircleUser className="w-3 h-3 mr-1 text-slate-900 bg-white rounded-full p-0.5" />
-                              White:
-                            </span>
-                            <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
-                              {getPlayerDisplay(game.playerWhiteId)}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="flex items-center text-slate-400">
-                              <CircleUser className="w-3 h-3 mr-1 text-white bg-slate-900 rounded-full p-0.5" />
-                              Black:
-                            </span>
-                            <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
-                              {getPlayerDisplay(game.playerBlackId)}
-                            </span>
-                          </div>
-                        </CardContent>
-                        <CardFooter className="p-3 pt-2 flex flex-col items-stretch space-y-1.5">
-                          <Button asChild size="sm" className="w-full">
-                            <Link href={`/play/${game.id}`}>
-                              {game.status === "pending" &&
-                                (!game.playerWhiteId ||
-                                  !game.playerBlackId ||
-                                  (userUuid &&
-                                    (game.playerWhiteId === userUuid || game.playerBlackId === userUuid)))
-                                ? "Join Game"
-                                : "View Game"}
-                            </Link>
-                          </Button>
-                          <div className="text-center text-slate-500 text-[10px] pt-0.5">
-                            <RelativeTimeDisplay dateString={new Date(game.updatedAt).toISOString()} />
-                          </div>
-                        </CardFooter>
-                      </Card>
+                              <Link href={`/play/${game.id}`}>Join Game</Link>
+                            </Button>
+                            <div className="text-[10px] text-neutral-500 mt-1 text-right w-full">
+                              <RelativeTimeDisplay
+                                dateString={new Date(game.updatedAt).toISOString()}
+                                className="inline"
+                              />
+                            </div>
+                          </>
+                        }
+                      />
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Section: Other Games */}
+              {/* Other Games */}
               {otherGames.length > 0 && (
-                <div className="mb-10">
-                  <h4 className="text-xl font-semibold mb-3 font-crimson">Other Games</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="mb-16">
+                  <div className="flex items-center space-x-3 mb-8">
+                    <Trophy className="h-6 w-6 text-neutral-400" />
+                    <h2 className="text-2xl font-semibold text-white">Live Games</h2>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {otherGames.map((game) => (
-                      <Card
+                      <GameCard
                         key={game.id}
-                        className="bg-slate-800/70 border-slate-700 shadow-md hover:border-sky-500/70 transition-all duration-200 flex flex-col"
-                      >
-                        <CardHeader className="p-3">
-                          <div className="flex justify-between items-start gap-2">
-                            <CardTitle className="text-xs font-mono text-sky-400 leading-tight">
-                              {game.id.substring(0, 8)}
-                            </CardTitle>
-                            <Badge
-                              variant={getStatusBadgeVariant(game.status)}
-                              className="shrink-0"
+                        game={game}
+                        userUuid={userUuid}
+                        getStatusBadgeVariant={getStatusBadgeVariant}
+                        getPlayerDisplay={getPlayerDisplay}
+                        footer={
+                          <>
+                            <Button
+                              asChild
+                              variant="outline"
+                              className="w-full border-neutral-700/60 bg-neutral-800/40 hover:bg-neutral-700/60 text-neutral-300 hover:text-white font-medium h-10 rounded-xl transition-all duration-200"
+                              size="sm"
                             >
-                              {game.status.replace(/_/g, " ")}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="p-3 pt-0 space-y-1.5 text-xs flex-grow">
-                          <div className="flex items-center justify-between">
-                            <span className="flex items-center text-slate-400">
-                              <CircleUser className="w-3 h-3 mr-1 text-slate-900 bg-white rounded-full p-0.5" />
-                              White:
-                            </span>
-                            <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
-                              {getPlayerDisplay(game.playerWhiteId)}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="flex items-center text-slate-400">
-                              <CircleUser className="w-3 h-3 mr-1 text-white bg-slate-900 rounded-full p-0.5" />
-                              Black:
-                            </span>
-                            <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
-                              {getPlayerDisplay(game.playerBlackId)}
-                            </span>
-                          </div>
-                        </CardContent>
-                        <CardFooter className="p-3 pt-2 flex flex-col items-stretch space-y-1.5">
-                          <Button asChild size="sm" className="w-full">
-                            <Link href={`/play/${game.id}`}>
-                              {game.status === "pending" &&
-                                (!game.playerWhiteId ||
-                                  !game.playerBlackId ||
-                                  (userUuid &&
-                                    (game.playerWhiteId === userUuid || game.playerBlackId === userUuid)))
-                                ? "Join Game"
-                                : "View Game"}
-                            </Link>
-                          </Button>
-                          <div className="text-center text-slate-500 text-[10px] pt-0.5">
-                            <RelativeTimeDisplay dateString={new Date(game.updatedAt).toISOString()} />
-                          </div>
-                        </CardFooter>
-                      </Card>
+                              <Link href={`/play/${game.id}`}>Spectate</Link>
+                            </Button>
+                            <div className="text-[10px] text-neutral-500 mt-1 text-right w-full">
+                              <RelativeTimeDisplay
+                                dateString={new Date(game.updatedAt).toISOString()}
+                                className="inline"
+                              />
+                            </div>
+                          </>
+                        }
+                      />
                     ))}
                   </div>
                 </div>
               )}
             </>
           )}
+
+          {/* Loading State */}
           {(isLoadingGames || userUuid === undefined) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {Array.from({ length: 4 }).map((_, i) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={i}
-                  className="bg-slate-800/70 border-slate-700 shadow-md rounded-lg animate-pulse flex flex-col"
-                  style={{ minHeight: 180 }}
+                  className="bg-neutral-900/40 backdrop-blur-sm border border-neutral-800/50 rounded-2xl p-6 animate-pulse"
                 >
-                  <div className="p-3 flex justify-between items-center">
-                    <div className="h-4 bg-slate-700 rounded w-1/3" />
-                    <div className="h-4 bg-slate-700 rounded w-1/4" />
-                  </div>
-                  <div className="p-3 pt-0 flex-1 space-y-2">
-                    <div className="h-3 bg-slate-700 rounded w-2/3" />
-                    <div className="h-3 bg-slate-700 rounded w-1/2" />
-                  </div>
-                  <div className="p-3 pt-2">
-                    <div className="h-8 bg-slate-700 rounded w-full" />
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div className="h-4 bg-neutral-800 rounded w-16" />
+                      <div className="h-5 bg-neutral-800 rounded w-20" />
+                    </div>
+                    <div className="h-4 bg-neutral-800 rounded w-24" />
+                    <div className="space-y-2">
+                      <div className="h-3 bg-neutral-800 rounded w-full" />
+                      <div className="h-3 bg-neutral-800 rounded w-3/4" />
+                    </div>
+                    <div className="h-8 bg-neutral-800 rounded w-full" />
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </section>
-        {/* Finished Games Section */}
-        {endedGames.length > 0 && (
-          <section className="mt-12">
-            <h4 className="text-xl font-semibold mb-3 font-crimson">Finished Games</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {endedGames.map((game) => (
-                <Card
-                  key={game.id}
-                  className="bg-slate-800/70 border-slate-700 shadow-md hover:border-sky-500/70 transition-all duration-200 flex flex-col"
-                >
-                  <CardHeader className="p-3">
-                    <div className="flex justify-between items-start gap-2">
-                      <CardTitle className="text-xs font-mono text-sky-400 leading-tight flex items-center gap-2">
-                        {game.id.substring(0, 8)}
-                      </CardTitle>
-                      <Badge
-                        variant={getStatusBadgeVariant(game.status)}
-                        className="shrink-0"
-                      >
-                        {game.status.replace(/_/g, " ")}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-3 pt-0 space-y-1.5 text-xs flex-grow">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center text-slate-400">
-                        <CircleUser className="w-3 h-3 mr-1 text-slate-900 bg-white rounded-full p-0.5" />
-                        White:
-                      </span>
-                      <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
-                        {getPlayerDisplay(game.playerWhiteId)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center text-slate-400">
-                        <CircleUser className="w-3 h-3 mr-1 text-white bg-slate-900 rounded-full p-0.5" />
-                        Black:
-                      </span>
-                      <span className="font-mono text-slate-200 truncate max-w-[100px] sm:max-w-[120px]">
-                        {getPlayerDisplay(game.playerBlackId)}
-                      </span>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="p-3 pt-2 flex flex-col items-stretch space-y-1.5">
-                    <Button asChild size="sm" className="w-full">
-                      <Link href={`/play/${game.id}`}>View Game</Link>
-                    </Button>
-                    <div className="text-center text-slate-500 text-[10px] pt-0.5">
-                      <RelativeTimeDisplay dateString={new Date(game.updatedAt).toISOString()} />
-                    </div>
-                  </CardFooter>
-                </Card>
-              ))}
+
+          {/* Finished Games */}
+          {endedGames.length > 0 && (
+            <div className="mt-16">
+              <div className="flex items-center space-x-3 mb-8">
+                <Trophy className="h-6 w-6 text-neutral-500" />
+                <h2 className="text-2xl font-semibold text-white">Recent Matches</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {endedGames.slice(0, 8).map((game) => (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    userUuid={userUuid}
+                    getStatusBadgeVariant={getStatusBadgeVariant}
+                    getPlayerDisplay={getPlayerDisplay}
+                    footer={
+                      <>
+                        <Button
+                          asChild
+                          variant="ghost"
+                          className="w-full text-neutral-400 hover:text-neutral-300 hover:bg-neutral-800/50 font-medium h-10 rounded-xl transition-all duration-200"
+                          size="sm"
+                        >
+                          <Link href={`/play/${game.id}`}>Review</Link>
+                        </Button>
+                        <div className="text-[10px] text-neutral-500 mt-1 text-right w-full">
+                          <RelativeTimeDisplay
+                            dateString={new Date(game.updatedAt).toISOString()}
+                            className="inline"
+                          />
+                        </div>
+                      </>
+                    }
+                  />
+                ))}
+              </div>
             </div>
-          </section>
-        )}
-      </main>
+          )}
+        </div>
+      </section>
 
       {/* Footer */}
-      <footer className="py-8 text-center border-t border-slate-700 mt-12">
-        <p className="text-sm text-slate-400">&copy; {new Date().getFullYear()} Stacks Chess. All rights reserved.</p>
+      <footer className="border-t border-neutral-800/50 bg-neutral-950/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-6 py-8 text-center">
+          <p className="text-sm text-neutral-500">
+            © {new Date().getFullYear()} Stacks Chess. Engineered for excellence.
+          </p>
+        </div>
       </footer>
     </div>
   )

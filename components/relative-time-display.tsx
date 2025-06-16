@@ -6,9 +6,10 @@ import { formatDistanceToNow, isValid, parseISO, fromUnixTime } from "date-fns"
 interface RelativeTimeDisplayProps {
   dateString: string | number | null // Can be ISO string or Unix timestamp (ms or s)
   fallbackText?: string
+  className?: string
 }
 
-export default function RelativeTimeDisplay({ dateString, fallbackText = "N/A" }: RelativeTimeDisplayProps) {
+export default function RelativeTimeDisplay({ dateString, fallbackText = "N/A", className }: RelativeTimeDisplayProps) {
   const [relativeTime, setRelativeTime] = useState<string>(fallbackText)
 
   useEffect(() => {
@@ -34,5 +35,5 @@ export default function RelativeTimeDisplay({ dateString, fallbackText = "N/A" }
     }
   }, [dateString, fallbackText])
 
-  return <>{relativeTime}</>
+  return <span className={className}>{relativeTime}</span>
 }

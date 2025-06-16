@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { connect, disconnect, isConnected, getLocalStorage } from "@stacks/connect"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { LogIn, LogOut } from "lucide-react" // Added UserCircle
+import { LogIn, LogOut, Wallet, User } from "lucide-react"
 import { useGlobalEvents } from "@/components/global-events-provider"
 
 export default function Auth() {
@@ -61,13 +61,18 @@ export default function Auth() {
     return (
       <Button
         onClick={handleDisconnectWallet}
-        variant="secondary"
+        variant="outline"
         size="sm"
+        className="border-neutral-700/60 bg-neutral-800/40 text-neutral-300 hover:bg-neutral-700/60 hover:text-white hover:border-neutral-600 transition-all duration-200 backdrop-blur-sm group"
       >
-        <LogOut className="mr-2 h-4 w-4" />
-        <span className="font-mono text-xs">
-          {stxAddress.substring(0, 5)}...{stxAddress.substring(stxAddress.length - 3)}
-        </span>
+        <div className="flex items-center space-x-2">
+          <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500/30 transition-colors">
+            <User className="h-3 w-3 text-emerald-400" />
+          </div>
+          <span className="font-mono text-xs">
+            {stxAddress.substring(0, 5)}...{stxAddress.substring(stxAddress.length - 3)}
+          </span>
+        </div>
       </Button>
     )
   }
@@ -75,10 +80,14 @@ export default function Auth() {
   return (
     <Button
       onClick={handleConnectWallet}
-      variant="secondary"
+      className="bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white border-0 transition-all duration-200 shadow-lg hover:shadow-xl backdrop-blur-sm group"
     >
-      <LogIn className="mr-2 h-4 w-4" />
-      Connect Wallet
+      <div className="flex items-center space-x-2">
+        <div className="w-5 h-5 rounded-lg bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors">
+          <Wallet className="h-3 w-3" />
+        </div>
+        <span className="font-medium">Connect Wallet</span>
+      </div>
     </Button>
   )
 }
