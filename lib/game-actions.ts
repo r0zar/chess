@@ -214,6 +214,7 @@ export async function makeServerMoveApi({ gameId, from, to, promotion, userId }:
     // Calculate and issue EXP reward for the move
     let expReward: { amount: number, reason: string } | undefined;
     const playerUser = await getUserById(userId)
+    console.log(`[EXP REWARD] Player user: ${JSON.stringify(playerUser)}`)
     if (playerUser?.stxAddress) {
         console.log(`[EXP REWARD] Attempting to issue 10 EXP to ${playerUser.stxAddress} for move in game ${gameId}`)
         expReward = calculateMoveEXP(moveResult, isCheck, isCheckmate);
