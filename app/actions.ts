@@ -8,17 +8,15 @@ import { ChessJsAdapter } from "@/lib/chess-logic/game"
 import { v4 as uuidv4 } from "uuid"
 import { cleanKVData } from "@/lib/chess-logic/mappers"
 import { getOrCreateUser } from '@/lib/user'
+import { getPartyKitHost } from '@/lib/config'
 
 const INITIAL_FEN = new ChessJsAdapter().getFen()
 
 // Add PartyKit global event broadcast helper
 async function broadcastGlobalEvent(event: any) {
   try {
-    const isProduction = process.env.NODE_ENV === 'production'
-    const partyKitHost = isProduction
-      ? process.env.PARTYKIT_HOST || 'chess-game.r0zar.partykit.dev'
-      : 'localhost:1999'
-    const protocol = isProduction ? 'https' : 'http'
+    const partyKitHost = getPartyKitHost()
+    const protocol = partyKitHost.startsWith('localhost') ? 'http' : 'https'
     const url = `${protocol}://${partyKitHost}/party/global-events`
     await fetch(url, {
       method: 'POST',
